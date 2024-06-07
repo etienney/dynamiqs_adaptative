@@ -7,4 +7,4 @@ This version of dynamiqs implements an estimator of the error made by the trunca
 
 ## adaptative solver
 
-This version can also adapt the size in modes on which to compute the simulation to save time by disregarding less populated modes.
+This version will also adapt the size in modes on which to compute the simulation to save time by disregarding less populated modes.
