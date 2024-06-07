@@ -93,10 +93,7 @@ class SESolver(BaseSolver):
 
 class MESolver(BaseSolver):
     Ls: list[TimeArray]
-    options : Options
     
     def result(self, saved: Saved, infos: PyTree | None = None) -> Result:
-        if self.options.estimator:
-            return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)
-        else:
-            return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)
+        return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)
+
