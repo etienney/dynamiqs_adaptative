@@ -20,7 +20,7 @@ from ..gradient import Gradient
 from ..options import Options
 from ..result import MEResult
 from ..solver import Dopri5, Dopri8, Euler, Propagator, Solver, Tsit5
-from ..time_array import TimeArray
+from ..time_array import TimeArray, ConstantTimeArray
 from ..utils.utils import todm
 from .mediffrax import MEDopri5, MEDopri8, MEEuler, METsit5
 from .mepropagator import MEPropagator
@@ -110,10 +110,20 @@ def mesolve(
     t0 = tsave[0]
     if options.estimator:
         if options.trunc_size is None:
+            if (
+                type(H)!=ConstantTimeArray or 
+                any([type(jump_ops[i])!=ConstantTimeArray 
+                for i in range(len(jump_ops))])
+            ):
+                jax.debug.print(
+                    'WARNING : If your array is not time dependant, beware that '
+                    'the truncature required to compute the estimator won\'t be '
+                    'trustworthy. See [link to the article] for more details. '
+                )
             if options.tensorisation is None:
                 # Find the truncature_size needed to compute the estimator
                 trunc_size = degree_guesser_list(
-                    H(t0),jnp.stack([L(t0) for L in jump_ops])
+                    H(t0), jnp.stack([L(t0) for L in jump_ops])
                 )
                 # for the 2 see [the article]
                 trunc_size = 2 * trunc_size
@@ -122,7 +132,7 @@ def mesolve(
                 options=Options(**tmp_dic) 
             else:
                 trunc_size = degree_guesser_nD_list(
-                    H(t0),jnp.stack([L(t0) for L in jump_ops])
+                    H(t0), jnp.stack([L(t0) for L in jump_ops])
                 )
                 # for the 2 see [the article]
                 trunc_size = [2*x for x in trunc_size]
