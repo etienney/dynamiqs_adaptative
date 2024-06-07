@@ -8,3 +8,9 @@ This version of dynamiqs implements an estimator of the error made by the trunca
 ## adaptative solver
 
 This version will also adapt the size in modes on which to compute the simulation to save time by disregarding less populated modes.
+
+# Installation 
+
+```shell
+pip install git+https://github.com/etienney/dynamiqs_adaptative.git
+```
