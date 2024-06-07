@@ -11,6 +11,6 @@ This version will also adapt the size in modes on which to compute the simulatio
 
 # Installation 
 
-'''python
-pip install git+https://github.com/etienney/dynamiqs_adaptative
-'''
+```shell
+pip install git+https://github.com/etienney/dynamiqs_adaptative.git
+```
