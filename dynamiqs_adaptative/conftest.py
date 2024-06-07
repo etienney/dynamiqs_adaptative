@@ -10,11 +10,11 @@ from sybil import Sybil
 from sybil.parsers.doctest import DocTestParser
 from sybil.parsers.markdown import PythonCodeBlockParser
 
-import dynamiqs_adptative
+import dynamiqs_adaptative
 
 
 def sybil_setup(namespace):
-    namespace['dq'] = dynamiqs_adptative
+    namespace['dq'] = dynamiqs_adaptative
     namespace['np'] = np
     namespace['plt'] = plt
     namespace['jax'] = jax
@@ -30,7 +30,7 @@ def _jax_set_printoptions():
 # doctest fixture
 @pytest.fixture(scope='session', autouse=True)
 def _mplstyle():
-    dynamiqs_adptative.plots.utils.mplstyle()
+    dynamiqs_adaptative.plots.utils.mplstyle()
 
 
 # doctest fixture

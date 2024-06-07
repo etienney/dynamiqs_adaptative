@@ -1,7 +1,7 @@
 import pytest
 
-from dynamiqs_adptative.gradient import Autograd, CheckpointAutograd
-from dynamiqs_adptative.solver import Euler
+from dynamiqs_adaptative.gradient import Autograd, CheckpointAutograd
+from dynamiqs_adaptative.solver import Euler
 
 from ..solver_tester import SolverTester
 from .closed_system import cavity, tdqubit

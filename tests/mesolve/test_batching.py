@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-import dynamiqs_adptative as dq
+import dynamiqs_adaptative as dq
 
 
 @pytest.mark.parametrize('cartesian_batching', [True, False])

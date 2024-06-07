@@ -1,7 +1,7 @@
 import pytest
 
-from dynamiqs_adptative.gradient import Autograd, CheckpointAutograd
-from dynamiqs_adptative.solver import Tsit5
+from dynamiqs_adaptative.gradient import Autograd, CheckpointAutograd
+from dynamiqs_adaptative.solver import Tsit5
 
 from ..solver_tester import SolverTester
 from .open_system import ocavity, otdqubit
