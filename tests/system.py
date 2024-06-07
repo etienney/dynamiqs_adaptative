@@ -6,11 +6,11 @@ import jax.numpy as jnp
 from jax import Array
 from jaxtyping import ArrayLike, PyTree
 
-from dynamiqs.gradient import Gradient
-from dynamiqs.options import Options
-from dynamiqs.result import Result
-from dynamiqs.solver import Solver
-from dynamiqs.time_array import TimeArray
+from dynamiqs_adptative.gradient import Gradient
+from dynamiqs_adptative.options import Options
+from dynamiqs_adptative.result import Result
+from dynamiqs_adptative.solver import Solver
+from dynamiqs_adptative.time_array import TimeArray
 
 
 class System(ABC):

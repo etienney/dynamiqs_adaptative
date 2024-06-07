@@ -8,7 +8,7 @@ from sybil import Sybil
 from sybil.evaluators.python import PythonEvaluator
 from sybil.parsers.markdown import PythonCodeBlockParser, SkipParser
 
-import dynamiqs
+import dynamiqs_adptative
 
 
 # doctest fixture
@@ -20,7 +20,7 @@ def _jax_set_printoptions():
 # doctest fixture
 @pytest.fixture(scope='session', autouse=True)
 def _mplstyle():
-    dynamiqs.plots.utils.mplstyle()
+    dynamiqs_adptative.plots.utils.mplstyle()
 
 
 @pytest.fixture(scope='session', autouse=True)

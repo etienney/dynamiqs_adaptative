@@ -6,9 +6,9 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 
-from dynamiqs.gradient import Gradient
-from dynamiqs.options import Options
-from dynamiqs.solver import Solver
+from dynamiqs_adptative.gradient import Gradient
+from dynamiqs_adptative.options import Options
+from dynamiqs_adptative.solver import Solver
 
 from .system import System
 

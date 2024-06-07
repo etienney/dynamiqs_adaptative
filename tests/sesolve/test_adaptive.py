@@ -1,7 +1,7 @@
 import pytest
 
-from dynamiqs.gradient import Autograd, CheckpointAutograd
-from dynamiqs.solver import Tsit5
+from dynamiqs_adptative.gradient import Autograd, CheckpointAutograd
+from dynamiqs_adptative.solver import Tsit5
 
 from ..solver_tester import SolverTester
 from .closed_system import cavity, tdqubit
