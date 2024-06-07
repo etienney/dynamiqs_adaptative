@@ -47,17 +47,14 @@ class Result(eqx.Module):
 
     @property
     def states(self) -> Array:
-        if self.options.estimator:
-            return self._saved.ysave
-        else:
-            return self._saved.ysave
+        return self._saved.ysave
 
     @property
     def estimator(self) -> Array:
         if self.options.estimator:
             return self._saved.estimator
         else:
-            raise ValueError('Calling estimator without using does not make sense. '
+            raise ValueError('Calling estimator without using it does not make sense. '
                              'Try putting \'options = dq.Options(estimator=True)\'')
 
     @property
@@ -69,12 +66,16 @@ class Result(eqx.Module):
         return self._saved.extra
 
     def _str_parts(self) -> dict[str, str]:
+        print(self.options.estimator)
         return {
             'Solver  ': type(self.solver).__name__,
             'Gradient': (
                 type(self.gradient).__name__ if self.gradient is not None else None
             ),
             'States  ': array_str(self.states),
+            'Estimator ': (
+                (self.estimator[-1][0]).real if self.options.estimator else None
+            ),
             'Expects ': array_str(self.expects),
             'Extra   ': (
                 eqx.tree_pformat(self.extra) if self.extra is not None else None
