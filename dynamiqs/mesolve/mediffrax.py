@@ -90,41 +90,6 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             jax.debug.print("{a}, {z}, {e}", a= t4-t3, z =t3-t2, e=t12-t11)
             return State(drho, derr)
 
-        # to put elsewhere    
-        def vector_field_estimator_1D_reshaping(t, y: State, _):
-            # run the simulation for a dynamic size (defined to make the error under an
-            # estimator of it).
-            # estimator = Estimator.get_instance()
-            y_true = y.rho
-            N,temp = y_true.shape
-            k = self.options.trunc_size
-            n_removed = 5
-            n_added = 7
-            steps = 16 # hardcoded for now
-            # maybe we will put a different atol here at some point
-            while y.err>_ODEAdaptiveStep.atol:
-                y.size = y.size + n_added
-                if y.size > N:
-                    jax.debug.print(
-                        '''The size you've chosen for your operators is not large enough
-                        to warranty that the tr'''
-                    )
-
-            if y.err<_ODEAdaptiveStep.atol and (y.size-k)>n_removed:
-                new_n = y.size-n_removed
-                Ls = jnp.stack([reduction_1D(L(t),new_n-k) for L in self.Ls])
-                H = reduction_1D(self.H(t),new_n-k)
-                rho = reduction_1D(y_true,new_n-k)
-                rho_N = extension_1D(rho,N)
-                derr = estimator_derivate_opti(rho_N, self.Ls, self.H(t), t, N, k)
-                # a little arbitrary if...
-                if (derr/steps)+y.err<(_ODEAdaptiveStep.atol)/2:
-                    y.size = new_n
-                Lsd = dag(Ls)
-                LdL = (Lsd @ Ls).sum(0)
-                tmp = (-1j * H - 0.5 * LdL) @ rho + 0.5 * (Ls @ rho @ Lsd).sum(0)
-            return State(y.rho, y.err, y.size)
-
         def vector_field_estimator_1D(t, y: State, _):  # noqa: ANN001, ANN202
             # run the simulation for the size n-k (k defined in the function from where
             # it is called), and add an estimator of the error made by truncating
@@ -160,10 +125,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             if self.options.tensorisation is not None:
                 return dx.ODETerm(vector_field_estimator_nD) 
             else:
-                if self.options.reshaping:
-                    return dx.ODETerm(vector_field_estimator_1D_reshaping)
-                else:
-                    return dx.ODETerm(vector_field_estimator_1D)
+                return dx.ODETerm(vector_field_estimator_1D)
         else:
             return dx.ODETerm(vector_field)
 
