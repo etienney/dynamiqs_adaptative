@@ -24,7 +24,6 @@ class AbstractSolver(eqx.Module):
 class State(eqx.Module):
     rho: Array
     err: Array
-    # size: Array
 
 class BaseSolver(AbstractSolver):
     ts: Array

@@ -199,7 +199,6 @@ def _mesolve(
     solver.assert_supports_gradient(gradient)
 
     # === init solver
-    # solver = solver_class(tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops, erreur)
     solver = solver_class(tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops)
 
     # === run solver
