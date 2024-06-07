@@ -102,32 +102,36 @@ def mesolve(
             [`dq.MEResult`][dynamiqs.MEResult].
     """
     # === convert arguments
+    H = _astimearray(H)
+    jump_ops = [_astimearray(L) for L in jump_ops]
+    rho0 = jnp.asarray(rho0, dtype=cdtype())
+    tsave = jnp.asarray(tsave)
+    exp_ops = jnp.asarray(exp_ops, dtype=cdtype()) if exp_ops is not None else None
+    t0 = tsave[0]
     if options.estimator:
         if options.trunc_size is None:
             if options.tensorisation is None:
                 # Find the truncature_size needed to compute the estimator
-                trunc_size = degree_guesser_list(H,jump_ops)
+                trunc_size = degree_guesser_list(
+                    H(t0),jnp.stack([L(t0) for L in jump_ops])
+                )
                 # for the 2 see [the article]
                 trunc_size = 2 * trunc_size
                 tmp_dic=options.__dict__
                 tmp_dic['trunc_size']=int(trunc_size)
                 options=Options(**tmp_dic) 
             else:
-                t1 = time.time()
-                trunc_size = degree_guesser_nD_list(H, jump_ops, options.tensorisation)
-                t2 = time.time() - t1
-                print(t2)
+                trunc_size = degree_guesser_nD_list(
+                    H(t0),jnp.stack([L(t0) for L in jump_ops])
+                )
                 # for the 2 see [the article]
                 trunc_size = [2*x for x in trunc_size]
                 tmp_dic=options.__dict__
                 # we convert to a hashable type.
                 tmp_dic['trunc_size']=[x.item() for x in jnp.array(trunc_size)]
                 options=Options(**tmp_dic) 
-    H = _astimearray(H)
-    jump_ops = [_astimearray(L) for L in jump_ops]
-    rho0 = jnp.asarray(rho0, dtype=cdtype())
-    tsave = jnp.asarray(tsave)
-    exp_ops = jnp.asarray(exp_ops, dtype=cdtype()) if exp_ops is not None else None
+
+    
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)
@@ -135,6 +139,8 @@ def mesolve(
 
     # === convert rho0 to density matrix
     rho0 = todm(rho0)
+
+    # === setup global values 
 
     # we implement the jitted vmap in another function to pre-convert QuTiP objects
     # (which are not JIT-compatible) to JAX arrays

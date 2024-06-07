@@ -66,7 +66,16 @@ class Result(eqx.Module):
         return self._saved.extra
 
     def _str_parts(self) -> dict[str, str]:
-        print(self.options.estimator)
+        if self.options.estimator:
+            if self.options.tensorisation is None:
+                simu_size = ((self.states).shape)[0] - self.options.trunc_size
+                given_size = ((self.states).shape)[0]
+            else:
+                simu_size = [
+                    self.options.tensorisation[i] - self.options.trunc_size[i]
+                    for i in range(len(self.options.tensorisation))
+                ]
+                given_size = self.options.tensorisation
         return {
             'Solver  ': type(self.solver).__name__,
             'Gradient': (
@@ -76,6 +85,8 @@ class Result(eqx.Module):
             'Estimator ': (
                 (self.estimator[-1][0]).real if self.options.estimator else None
             ),
+            'Simulation size ': (simu_size if self.options.estimator else None),
+            'Original size ': (given_size if self.options.estimator else None),
             'Expects ': array_str(self.expects),
             'Extra   ': (
                 eqx.tree_pformat(self.extra) if self.extra is not None else None
