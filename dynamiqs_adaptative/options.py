@@ -82,7 +82,7 @@ class Options(eqx.Module):
     # parameters the user is not supposed to touch
     projH: TimeArray | None = None
     projL: TimeArray | None = None
-    dict: Array | None = None
+    mask: Array | None = None
 
     def __init__(
         self,
@@ -99,7 +99,7 @@ class Options(eqx.Module):
         trunc_size: Array | None = None,
         projH: TimeArray | None = None,
         projL: TimeArray | None = None,
-        dict: Array | None = None,
+        mask: Array | None = None,
     ):
         
         self.save_states = save_states
@@ -114,7 +114,7 @@ class Options(eqx.Module):
         self.trunc_size = trunc_size
         self.projH = projH
         self.projL = projL
-        self.dict = dict
+        self.mask = mask
 
         # make `save_extra` a valid Pytree with `jax.tree_util.Partial`
         if save_extra is not None:

@@ -27,7 +27,7 @@ from .mepropagator import MEPropagator
 
 from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
 from ..a_posteriori.n_D.degree_guesser_nD import degree_guesser_nD_list
-from ..a_posteriori.n_D.projection_nD import projection_nD, dict_nD
+from ..a_posteriori.n_D.projection_nD import projection_nD, dict_nD, mask
 from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
 from ..a_posteriori.utils.hash import to_hashable
 # from ..a_posteriori.globalclass import Globalclass
@@ -152,8 +152,9 @@ def mesolve(
                 for idx in range(len(lazy_tensorisation))
                 ]
                 tensorisation = tensorisation_maker(lazy_tensorisation)
+                _mask = mask(H0, dict_nD(tensorisation, inequalities))
                 Hred, *Lsred = projection_nD(
-                   [H0] + list(L0), tensorisation, inequalities
+                   [H0] + list(L0), tensorisation, inequalities, _mask
                 )
                 # We setup the results in options
                 tmp_dic=options.__dict__
@@ -161,7 +162,7 @@ def mesolve(
                 tmp_dic['projH'] = to_hashable(Hred)
                 # tmp_dic['projL'] = to_hashable(jnp.stack(jnp.array([Lsred for L in Lsred])))
                 tmp_dic['projL'] = to_hashable(Lsred)
-                tmp_dic['dict'] = dict_nD(tensorisation, inequalities)
+                tmp_dic['mask'] = to_hashable(_mask)
                 tmp_dic['trunc_size'] = [x.item() for x in jnp.array(trunc_size)]
                 options=Options(**tmp_dic) 
 

@@ -74,7 +74,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             GLs = jnp.stack([L(t) for L in self.Ls])
             t120 = time.time()
             rho = projection_nD(
-                [y_true], tensorisation, inequalities, self.options.dict
+                [y_true], tensorisation, inequalities, jnp.array(self.options.mask)
             )[0]
             t121 = time.time()
             H = jnp.array(self.options.projH)
@@ -91,7 +91,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
                 rho, GLs, Ls, self.H(t), H
             )
             t4 = time.time()
-            jax.debug.print("{a}, {z}, {e}", a= t121-t120, z =t3-t2, e=t4-t3)
+            jax.debug.print("{a}, {z}, {e}", a= t121-t1, z =t3-t2, e=t4-t3)
             return State(drho, derr)
 
         def vector_field_estimator_1D(t, y: State, _):  # noqa: ANN001, ANN202

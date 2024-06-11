@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-def projection_nD(objs, original_tensorisation, inequalities, dictio = None):
+def projection_nD(objs, original_tensorisation, inequalities, _mask = None):
     # create a tensorial projection of some n dimensional matrix "objs" tensorised under 
     # "original_tensorisation"  into matrixs "new_objs" projected according to
     # some inequalities "inequalities"
@@ -22,23 +22,11 @@ def projection_nD(objs, original_tensorisation, inequalities, dictio = None):
 
     new_objs = objs
     # if dictio is already known we don't calculate it
-    if dictio is None:
+    if _mask is None:
         dictio = dict_nD(original_tensorisation, inequalities)
-    len_dictio = len(dictio)
+        _mask = mask(new_objs[0], dictio)
     for i in range(len(new_objs)):
-        for j in range(len_dictio):
-            new_objs[i] = zeros(new_objs[i], dictio[j])
-
-    return new_objs
-
-def reduction_nD(objs, original_tensorisation, inequalities):
-    # same as projection_nD but delete lines instead of putting zeros
-
-    new_objs = []
-    # Sort positions in descending order to avoid shifting issues
-    dictio = sorted(dict_nD(original_tensorisation, inequalities), reverse=True)
-    for i in range(len(objs)):
-        new_objs.append(recursive_delete(objs[i], dictio))
+        new_objs[i] = jnp.where(_mask, new_objs[i], 0)
 
     return new_objs
 
@@ -59,7 +47,27 @@ def dict_nD(original_tensorisation, inequalities):
 
     return dictio
 
-def zeros(obj, pos):
+def mask(obj, dict):
+    """
+    Put zeros on the line and column of a matrix "obj" by reference to a position "pos".
+    Zeros are placed in a contiguous streak.
+
+    Args:
+    obj: input matrix
+    pos: position where zeros should be placed
+
+    Returns:
+    obj: matrix with zeros placed in a contiguous streak
+    """
+    # Create a mask for the positions to zero out
+    mask = jnp.ones_like(obj, dtype=bool)
+    for x in dict:
+        mask = jnp.where(jnp.arange(obj.shape[0])[:, None] == x, False, mask)  # Zero out row
+        mask = jnp.where(jnp.arange(obj.shape[1])[None, :] == x, False, mask)  # Zero out column
+
+    return mask
+
+def zeros_old(obj, pos):
     # Put zeros on the line and column of a matrix "obj" by reference to a position "pos"
     
     zeros = jnp.zeros(obj.shape[0], dtype=obj.dtype)
@@ -67,6 +75,17 @@ def zeros(obj, pos):
     obj = obj.at[:, pos].set(zeros)
     
     return obj
+
+def reduction_nD(objs, original_tensorisation, inequalities):
+    # same as projection_nD but delete lines instead of putting zeros
+
+    new_objs = []
+    # Sort positions in descending order to avoid shifting issues
+    dictio = sorted(dict_nD(original_tensorisation, inequalities), reverse=True)
+    for i in range(len(objs)):
+        new_objs.append(recursive_delete(objs[i], dictio))
+
+    return new_objs
 
 def delete(obj,pos):
     # delete the line and col of a matrix "obj" by reference to a position "pos"
