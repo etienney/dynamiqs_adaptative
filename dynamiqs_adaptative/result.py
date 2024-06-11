@@ -78,6 +78,11 @@ class Result(eqx.Module):
                     for i in range(len(self.options.tensorisation))
                 ]
                 given_size = self.options.tensorisation
+            if self.options.save_states:
+                estimator = (self.estimator[-1][0]).real 
+            else:
+                estimator = (self.estimator[0]).real 
+
         return {
             'Solver  ': type(self.solver).__name__,
             'Gradient': (
@@ -85,7 +90,7 @@ class Result(eqx.Module):
             ),
             'States  ': array_str(self.states),
             'Estimator ': (
-                (self.estimator[-1][0]).real if self.options.estimator else None
+                estimator if self.options.estimator else None
             ),
             'Simulation size ': (simu_size if self.options.estimator else None),
             'Original size ': (given_size if self.options.estimator else None),
