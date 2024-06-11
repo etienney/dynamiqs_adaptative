@@ -97,6 +97,9 @@ class Options(eqx.Module):
         inequalities: list | None = None,
         estimator_rtol : int | None = 100,
         trunc_size: Array | None = None,
+        projH: TimeArray | None = None,
+        projL: TimeArray | None = None,
+        dict: Array | None = None,
     ):
         
         self.save_states = save_states
@@ -109,6 +112,9 @@ class Options(eqx.Module):
         self.reshaping = reshaping
         self.estimator_rtol = estimator_rtol
         self.trunc_size = trunc_size
+        self.projH = projH
+        self.projL = projL
+        self.dict = dict
 
         # make `save_extra` a valid Pytree with `jax.tree_util.Partial`
         if save_extra is not None:

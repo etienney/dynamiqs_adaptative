@@ -27,6 +27,9 @@ from .mepropagator import MEPropagator
 
 from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
 from ..a_posteriori.n_D.degree_guesser_nD import degree_guesser_nD_list
+from ..a_posteriori.n_D.projection_nD import projection_nD, dict_nD
+from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
+from ..a_posteriori.utils.hash import to_hashable
 # from ..a_posteriori.globalclass import Globalclass
 import time
 
@@ -135,17 +138,29 @@ def mesolve(
                 tmp_dic['trunc_size']=int(trunc_size)
                 options=Options(**tmp_dic) 
             else:
-                trunc_size = degree_guesser_nD_list(
-                    H(t0), jnp.stack([L(t0) for L in jump_ops])
-                )
+                H0 = H(t0)
+                L0 = jnp.stack([L(t0) for L in jump_ops])
+                lazy_tensorisation = options.tensorisation
+                trunc_size = degree_guesser_nD_list(H0, L0, lazy_tensorisation)
                 # for the 2 see [the article]
-                trunc_size = [2*x for x in trunc_size]
+                trunc_size = [2 * x for x in trunc_size]
+                inequalities = [
+                lambda *args, idx=idx, lt=lazy_tensorisation: 
+                args[idx] <= lt[idx] - (trunc_size[idx]+1)
+                for idx in range(len(lazy_tensorisation))
+                ]
+                tensorisation = tensorisation_maker(lazy_tensorisation)
+                Hred, *Lsred = projection_nD(
+                   [H0] + list(L0), tensorisation, inequalities
+                )
+                # We setup the results in options
                 tmp_dic=options.__dict__
-                # we convert to a hashable type.
-                tmp_dic['trunc_size']=[x.item() for x in jnp.array(trunc_size)]
+                # we convert to hashable types (ie immutables).
+                tmp_dic['projH'] = to_hashable(Hred)
+                tmp_dic['projL'] = to_hashable([Lsred for L in Lsred])
+                tmp_dic['dict'] = dict_nD(tensorisation, inequalities)
+                tmp_dic['trunc_size'] = [x.item() for x in jnp.array(trunc_size)]
                 options=Options(**tmp_dic) 
-
-    
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)

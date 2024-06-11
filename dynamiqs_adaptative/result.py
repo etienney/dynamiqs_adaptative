@@ -78,6 +78,9 @@ class Result(eqx.Module):
                     for i in range(len(self.options.tensorisation))
                 ]
                 given_size = self.options.tensorisation
+                # print it in a nicer way, without the "Array"
+                simu_size = tuple(arr.item() for arr in simu_size)
+                given_size = tuple(arr.item() for arr in given_size)
             if self.options.save_states:
                 estimator = (self.estimator[-1][0]).real 
             else:

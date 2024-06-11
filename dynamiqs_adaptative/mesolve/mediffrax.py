@@ -70,10 +70,12 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             t12 = time.time()
             # instead of really reducing the operators to a smaller sized space, we will
             # project all of them on a smaller sized space (the result is the same)
-            GLs = jnp.stack([L(t)for L in self.Ls])
+            GLs = jnp.stack([L(t) for L in self.Ls])
             rho, H, *Ls = projection_nD(
                 [y_true,self.H(t)] + list(GLs), tensorisation, inequalities
             )
+            # print(H)
+            # print(self.options.projH)
             t13 = time.time()
             Ls = jnp.stack(Ls)
             Lsd = dag(Ls)
@@ -86,7 +88,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
                 rho, GLs, Ls, self.H(t), H
             )
             t4 = time.time()
-            jax.debug.print("{a}, {z}, {e}", a= t4-t3, z =t3-t2, e=t12-t11)
+            # jax.debug.print("{a}, {z}, {e}", a= t4-t3, z =t3-t2, e=t12-t11)
             return State(drho, derr)
 
         def vector_field_estimator_1D(t, y: State, _):  # noqa: ANN001, ANN202
