@@ -128,7 +128,7 @@ def mesolve(
                     'trustworthy. See [link to the article] for more details. '
                 )
             if options.tensorisation is None:
-                # Find the truncature_size needed to compute the estimator
+                # Find the truncature needed to compute the estimator
                 trunc_size = degree_guesser_list(
                     H(t0), jnp.stack([L(t0) for L in jump_ops])
                 )
@@ -141,9 +141,11 @@ def mesolve(
                 H0 = H(t0)
                 L0 = jnp.stack([L(t0) for L in jump_ops])
                 lazy_tensorisation = options.tensorisation
+                # Find the truncature needed to compute the estimator
                 trunc_size = degree_guesser_nD_list(H0, L0, lazy_tensorisation)
                 # for the 2 see [the article]
                 trunc_size = [2 * x for x in trunc_size]
+                # tansform the trunctature into inegalities
                 inequalities = [
                 lambda *args, idx=idx, lt=lazy_tensorisation: 
                 args[idx] <= lt[idx] - (trunc_size[idx]+1)
