@@ -53,7 +53,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
         # induced on the dynamics.
 
         def vector_field_estimator_nD(t, y: State, _):
-            # run the simulation for a smaller size than the defined tensorisation.
+            # run the simulation for a smaller size than the defined tensorisation..
             t1 = time.time()
             y_true = y.rho
             lazy_tensorisation = self.options.tensorisation
