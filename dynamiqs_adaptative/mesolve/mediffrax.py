@@ -30,7 +30,6 @@ from ..utils.utils import dag
 
 
 class MEDiffraxSolver(DiffraxSolver, MESolver):
-    # options: Options
     @property
     def terms(self) -> dx.AbstractTerm:
         # define Lindblad term drho/dt

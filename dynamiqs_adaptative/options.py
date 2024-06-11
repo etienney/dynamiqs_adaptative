@@ -5,6 +5,8 @@ import jax
 from jax import Array
 from jaxtyping import PyTree, ScalarLike
 
+from .time_array import TimeArray
+
 from ._utils import tree_str_inline
 
 __all__ = ['Options']
@@ -77,6 +79,10 @@ class Options(eqx.Module):
     inequalities: list | None = None
     estimator_rtol : int | None = 100
     trunc_size: Array | None = None
+    # parameters the user is not supposed to touch
+    projH: TimeArray | None = None
+    projL: TimeArray | None = None
+    dict: Array | None = None
 
     def __init__(
         self,
@@ -91,7 +97,6 @@ class Options(eqx.Module):
         inequalities: list | None = None,
         estimator_rtol : int | None = 100,
         trunc_size: Array | None = None,
-        
     ):
         
         self.save_states = save_states
