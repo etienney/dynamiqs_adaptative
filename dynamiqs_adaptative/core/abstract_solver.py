@@ -14,7 +14,6 @@ from ..time_array import TimeArray
 from ..utils.utils import expect
 from ..options import Options
 
-import jax
 
 class AbstractSolver(eqx.Module):
     @abstractmethod

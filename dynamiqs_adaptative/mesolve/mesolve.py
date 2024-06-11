@@ -27,6 +27,7 @@ from .mepropagator import MEPropagator
 
 from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
 from ..a_posteriori.n_D.degree_guesser_nD import degree_guesser_nD_list
+# from ..a_posteriori.globalclass import Globalclass
 import time
 
 __all__ = ['mesolve']
@@ -107,6 +108,9 @@ def mesolve(
     rho0 = jnp.asarray(rho0, dtype=cdtype())
     tsave = jnp.asarray(tsave)
     exp_ops = jnp.asarray(exp_ops, dtype=cdtype()) if exp_ops is not None else None
+
+    # === estimator part
+    # globalclass = Globalclass()
     t0 = tsave[0]
     if options.estimator:
         if options.trunc_size is None:
@@ -154,7 +158,12 @@ def mesolve(
 
     # we implement the jitted vmap in another function to pre-convert QuTiP objects
     # (which are not JIT-compatible) to JAX arrays
-    return _vmap_mesolve(H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options)
+    # return _vmap_mesolve(
+    #     H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, globalclass
+    # )
+    return _vmap_mesolve(
+            H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+        )
 
 @partial(jax.jit, static_argnames=('solver', 'gradient', 'options'))
 def _vmap_mesolve(
@@ -166,6 +175,7 @@ def _vmap_mesolve(
     solver: Solver,
     gradient: Gradient | None,
     options: Options,
+    # globalclass: Globalclass,
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
@@ -178,6 +188,7 @@ def _vmap_mesolve(
         False,
         False,
         False,
+        # False,
     )
 
     # the result is vectorized over `_saved` and `infos`
@@ -188,6 +199,7 @@ def _vmap_mesolve(
 
     # === apply vectorized function
     # return f(H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, erreur)
+    # return f(H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, globalclass)
     return f(H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options)
 
 
@@ -200,6 +212,7 @@ def _mesolve(
     solver: Solver,
     gradient: Gradient | None,
     options: Options,
+    # globalclass: Globalclass,
 ) -> MEResult:
     # === select solver class
     solvers = {
@@ -215,7 +228,12 @@ def _mesolve(
     solver.assert_supports_gradient(gradient)
 
     # === init solver
-    solver = solver_class(tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops)
+    # solver = solver_class(
+    #     tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops, globalclass
+    # )
+    solver = solver_class(
+        tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
+    )
 
     # === run solver
     result = solver.run()
