@@ -1,6 +1,6 @@
 import jax.numpy as jnp
 
-def projection_nD(objs, original_tensorisation, inequalities):
+def projection_nD(objs, original_tensorisation, inequalities, dictio = None):
     # create a tensorial projection of some n dimensional matrix "objs" tensorised under 
     # "original_tensorisation"  into matrixs "new_objs" projected according to
     # some inequalities "inequalities"
@@ -21,7 +21,9 @@ def projection_nD(objs, original_tensorisation, inequalities):
     # projected lines and columns)
 
     new_objs = objs
-    dictio = dict_nD(original_tensorisation, inequalities)
+    # if dictio is already known we don't calculate it
+    if dictio is None:
+        dictio = dict_nD(original_tensorisation, inequalities)
     len_dictio = len(dictio)
     for i in range(len(new_objs)):
         for j in range(len_dictio):

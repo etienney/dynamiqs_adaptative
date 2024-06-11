@@ -11,3 +11,9 @@ def to_hashable(obj):
         return tuple(to_hashable(sub_obj) for sub_obj in obj)
     else:
         return obj
+
+def tuple_to_list(t):
+    if isinstance(t, tuple):
+        return [tuple_to_list(item) for item in t]
+    else:
+        return t

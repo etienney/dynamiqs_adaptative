@@ -159,7 +159,8 @@ def mesolve(
                 tmp_dic=options.__dict__
                 # we convert to hashable types (ie immutables).
                 tmp_dic['projH'] = to_hashable(Hred)
-                tmp_dic['projL'] = to_hashable([Lsred for L in Lsred])
+                # tmp_dic['projL'] = to_hashable(jnp.stack(jnp.array([Lsred for L in Lsred])))
+                tmp_dic['projL'] = to_hashable(Lsred)
                 tmp_dic['dict'] = dict_nD(tensorisation, inequalities)
                 tmp_dic['trunc_size'] = [x.item() for x in jnp.array(trunc_size)]
                 options=Options(**tmp_dic) 

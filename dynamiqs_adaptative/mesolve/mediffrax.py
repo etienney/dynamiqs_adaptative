@@ -13,6 +13,7 @@ from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_simple_n
 from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
 from ..a_posteriori.n_D.projection_nD import projection_nD
 from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
+from ..a_posteriori.utils.hash import tuple_to_list
 from ..core.abstract_solver import State
 import time
 
@@ -71,11 +72,13 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             # instead of really reducing the operators to a smaller sized space, we will
             # project all of them on a smaller sized space (the result is the same)
             GLs = jnp.stack([L(t) for L in self.Ls])
-            rho, H, *Ls = projection_nD(
-                [y_true,self.H(t)] + list(GLs), tensorisation, inequalities
-            )
-            # print(H)
-            # print(self.options.projH)
+            t120 = time.time()
+            rho = projection_nD(
+                [y_true], tensorisation, inequalities, self.options.dict
+            )[0]
+            t121 = time.time()
+            H = jnp.array(self.options.projH)
+            Ls = [jnp.array(x) for x in self.options.projL]
             t13 = time.time()
             Ls = jnp.stack(Ls)
             Lsd = dag(Ls)
@@ -88,14 +91,14 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
                 rho, GLs, Ls, self.H(t), H
             )
             t4 = time.time()
-            # jax.debug.print("{a}, {z}, {e}", a= t4-t3, z =t3-t2, e=t12-t11)
+            jax.debug.print("{a}, {z}, {e}", a= t121-t120, z =t3-t2, e=t4-t3)
             return State(drho, derr)
 
         def vector_field_estimator_1D(t, y: State, _):  # noqa: ANN001, ANN202
             # run the simulation for the size n-k (k defined in the function from where
             # it is called), and add an estimator of the error made by truncating
             y_true = y.rho
-            N,temp=y_true.shape
+            N,temp = y_true.shape
             # guessing the degree of the polynomial. if H and L are time dependant,
             # it should be executed at each t... not really efficient though     
             k = self.options.trunc_size
