@@ -52,6 +52,11 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
         # and is thus more efficient numerically with only a negligible numerical error
         # induced on the dynamics.
 
+        def vector_field_estimator_1D_reshaped(t, y: State, _):
+            drho=y
+            derr=0
+            return State(drho, derr)
+
         def vector_field_estimator_nD(t, y: State, _):
             # run the simulation for a smaller size than the defined tensorisation 
             t1 = time.time()
