@@ -54,7 +54,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
 
         def vector_field_estimator_1D_reshaped(t, y: State, _):
             drho=y
-            derr=0
+            derr=0  
             return State(drho, derr)
 
         def vector_field_estimator_nD(t, y: State, _):
