@@ -6,20 +6,20 @@ from jaxtyping import Array
 
 from ..a_posteriori.one_D.extension_1D import extension_1D
 from ..a_posteriori.one_D.reduction_1D import reduction_1D
-from ..a_posteriori.one_D.estimator_derivate_1D import (estimator_derivate_simple, 
-estimator_derivate_opti
+from ..a_posteriori.one_D.estimator_derivate_1D import (
+    estimator_derivate_simple, estimator_derivate_opti
 )
-from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_simple_nD
+from ..a_posteriori.n_D.estimator_derivate_nD import (
+    estimator_derivate_simple_nD, estimator_derivate_opti_nD
+)
 from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
 from ..a_posteriori.n_D.projection_nD import projection_nD
 from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
-from ..a_posteriori.utils.hash import tuple_to_list
 from ..time_array import TimeArray
 from ..core.abstract_solver import State
 import time
 
 from ..core.abstract_solver import MESolver
-from ..solver import _ODEAdaptiveStep
 from ..core.diffrax_solver import (
     DiffraxSolver,
     Dopri5Solver,
@@ -79,11 +79,9 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
                 [y_true], tensorisation, inequalities, self._mask
             )[0]
             t121 = time.time()
-            # jax.debug.print("{a} , {b}", a= t121-t120, b=t120-t12)
-            # H = jnp.array(self.options.projH)
+            # jax.debug.print("{a}", a= t121-t120)
             H = self.Hred(t)
             Ls = jnp.stack([L(t) for L in self.Lsred])
-            # Ls = [jnp.array(x) for x in self.options.projL]
             t13 = time.time()
             Ls = jnp.stack(Ls)
             Lsd = dag(Ls)
@@ -92,8 +90,8 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             tmp = (-1j * H - 0.5 * LdL) @ rho + 0.5 * (Ls @ rho @ Lsd).sum(0)
             drho = tmp + dag(tmp)
             t3 = time.time()
-            derr = estimator_derivate_simple_nD(
-                rho, GLs, Ls, self.H(t), H
+            derr = estimator_derivate_opti_nD(
+                drho, self.H(t), GLs, rho
             )
             t4 = time.time()
             # jax.debug.print("{z}, {e}", z =t3-t2, e=t4-t3)

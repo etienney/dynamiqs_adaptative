@@ -29,8 +29,6 @@ from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
 from ..a_posteriori.n_D.degree_guesser_nD import degree_guesser_nD_list
 from ..a_posteriori.n_D.projection_nD import projection_nD, dict_nD, mask
 from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
-from ..a_posteriori.utils.hash import to_hashable
-# from ..a_posteriori.globalclass import Globalclass
 import time
 
 __all__ = ['mesolve']
@@ -170,7 +168,7 @@ def mesolve(
                 Hred = _astimearray(Hred)
                 Lsred = [_astimearray(L) for L in Lsred]
                 t1 = time.time()
-                # print(t1-t0)
+                print(t1-t0)
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)

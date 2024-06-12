@@ -9,6 +9,7 @@ from .time_array import *
 from .utils import *
 
 from .a_posteriori import *
+from .time_array import TimeArray
 
 # get version from pyproject.toml
 __version__ = version(__package__)
