@@ -138,6 +138,7 @@ def mesolve(
                 tmp_dic['trunc_size']=int(trunc_size)
                 options=Options(**tmp_dic) 
             else:
+                t0 = time.time()
                 H0 = H(t0)
                 L0 = jnp.stack([L(t0) for L in jump_ops])
                 lazy_tensorisation = options.tensorisation
@@ -159,12 +160,17 @@ def mesolve(
                 # We setup the results in options
                 tmp_dic=options.__dict__
                 # we convert to hashable types (ie immutables).
-                tmp_dic['projH'] = to_hashable(Hred)
+                # tmp_dic['projH'] = to_hashable(Hred)
                 # tmp_dic['projL'] = to_hashable(jnp.stack(jnp.array([Lsred for L in Lsred])))
-                tmp_dic['projL'] = to_hashable(Lsred)
-                tmp_dic['mask'] = to_hashable(_mask)
+                # tmp_dic['projL'] = to_hashable(Lsred)
+                # tmp_dic['mask'] = to_hashable(_mask)
                 tmp_dic['trunc_size'] = [x.item() for x in jnp.array(trunc_size)]
                 options=Options(**tmp_dic) 
+                # reconvert to Timearray args
+                Hred = _astimearray(Hred)
+                Lsred = [_astimearray(L) for L in Lsred]
+                t1 = time.time()
+                # print(t1-t0)
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)
@@ -173,16 +179,18 @@ def mesolve(
     # === convert rho0 to density matrix
     rho0 = todm(rho0)
 
-    # === setup global values 
-
     # we implement the jitted vmap in another function to pre-convert QuTiP objects
     # (which are not JIT-compatible) to JAX arrays
-    # return _vmap_mesolve(
-    #     H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, globalclass
-    # )
-    return _vmap_mesolve(
-            H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-        )
+    if options.estimator and options.tensorisation:
+        return _vmap_mesolve(
+                H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+                , Hred, Lsred, _mask 
+            )
+    else:
+        return _vmap_mesolve(
+                H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+                , None, None, None
+            )
 
 @partial(jax.jit, static_argnames=('solver', 'gradient', 'options'))
 def _vmap_mesolve(
@@ -194,22 +202,37 @@ def _vmap_mesolve(
     solver: Solver,
     gradient: Gradient | None,
     options: Options,
-    # globalclass: Globalclass,
+    Hred: TimeArray | None,
+    Lsred: list[TimeArray] | None,
+    _mask: Array | None,
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
-    is_batched = (
-        is_timearray_batched(H),
-        [is_timearray_batched(jump_op) for jump_op in jump_ops],
-        rho0.ndim > 2,
-        False,
-        False,
-        False,
-        False,
-        False,
-        # False,
-    )
-
+    if options.estimator and options.tensorisation:
+        is_batched = (
+            is_timearray_batched(H),
+            [is_timearray_batched(jump_op) for jump_op in jump_ops],
+            rho0.ndim > 2,
+            False,
+            False,
+            False,
+            False,
+            False,
+            is_timearray_batched(Hred),
+            [is_timearray_batched(L) for L in Lsred],
+            False,
+        )
+    else:
+        is_batched = (
+            is_timearray_batched(H),
+            [is_timearray_batched(jump_op) for jump_op in jump_ops],
+            rho0.ndim > 2,
+            False,
+            False,
+            False,
+            False,
+            False,
+        )
     # the result is vectorized over `_saved` and `infos`
     out_axes = MEResult(None, None, None, None, 0, 0)
 
@@ -217,9 +240,16 @@ def _vmap_mesolve(
     f = compute_vmap(_mesolve, options.cartesian_batching, is_batched, out_axes)
 
     # === apply vectorized function
-    # return f(H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, erreur)
-    # return f(H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, globalclass)
-    return f(H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options)
+    if options.estimator and options.tensorisation:
+        return f(
+            H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+            , Hred, Lsred, _mask
+        )
+    else:
+        return f(
+            H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+            , None, None, None
+        )
 
 
 def _mesolve(
@@ -231,7 +261,9 @@ def _mesolve(
     solver: Solver,
     gradient: Gradient | None,
     options: Options,
-    # globalclass: Globalclass,
+    Hred: TimeArray | None,
+    Lsred: list[TimeArray] | None,
+    _mask: Array | None,
 ) -> MEResult:
     # === select solver class
     solvers = {
@@ -247,12 +279,16 @@ def _mesolve(
     solver.assert_supports_gradient(gradient)
 
     # === init solver
-    # solver = solver_class(
-    #     tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops, globalclass
-    # )
-    solver = solver_class(
-        tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
-    )
+    if options.estimator and options.tensorisation:
+        solver = solver_class(
+            tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
+            , Hred, Lsred, _mask
+        )
+    else:
+        solver = solver_class(
+            tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
+            , None, None, None
+        )
 
     # === run solver
     result = solver.run()

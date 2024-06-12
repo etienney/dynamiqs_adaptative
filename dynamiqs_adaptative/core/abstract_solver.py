@@ -92,6 +92,9 @@ class SESolver(BaseSolver):
 
 class MESolver(BaseSolver):
     Ls: list[TimeArray]
+    Hred: TimeArray
+    Lsred: list[TimeArray]
+    _mask: Array
     
     def result(self, saved: Saved, infos: PyTree | None = None) -> Result:
         return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)

@@ -14,6 +14,7 @@ from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
 from ..a_posteriori.n_D.projection_nD import projection_nD
 from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
 from ..a_posteriori.utils.hash import tuple_to_list
+from ..time_array import TimeArray
 from ..core.abstract_solver import State
 import time
 
@@ -54,6 +55,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
 
         def vector_field_estimator_nD(t, y: State, _):
             # run the simulation for a smaller size than the defined tensorisation..
+            
             t1 = time.time()    
             y_true = y.rho
             lazy_tensorisation = self.options.tensorisation
@@ -74,11 +76,14 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             GLs = jnp.stack([L(t) for L in self.Ls])
             t120 = time.time()
             rho = projection_nD(
-                [y_true], tensorisation, inequalities, jnp.array(self.options.mask)
+                [y_true], tensorisation, inequalities, self._mask
             )[0]
             t121 = time.time()
-            H = jnp.array(self.options.projH)
-            Ls = [jnp.array(x) for x in self.options.projL]
+            # jax.debug.print("{a} , {b}", a= t121-t120, b=t120-t12)
+            # H = jnp.array(self.options.projH)
+            H = self.Hred(t)
+            Ls = jnp.stack([L(t) for L in self.Lsred])
+            # Ls = [jnp.array(x) for x in self.options.projL]
             t13 = time.time()
             Ls = jnp.stack(Ls)
             Lsd = dag(Ls)
@@ -91,7 +96,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
                 rho, GLs, Ls, self.H(t), H
             )
             t4 = time.time()
-            jax.debug.print("{a}, {z}, {e}", a= t121-t1, z =t3-t2, e=t4-t3)
+            # jax.debug.print("{z}, {e}", z =t3-t2, e=t4-t3)
             return State(drho, derr)
 
         def vector_field_estimator_1D(t, y: State, _):  # noqa: ANN001, ANN202

@@ -51,7 +51,7 @@ class DiffraxSolver(BaseSolver):
                 adjoint = dx.RecursiveCheckpointAdjoint(self.gradient.ncheckpoints)
             elif isinstance(self.gradient, Autograd):
                 adjoint = dx.DirectAdjoint()
-
+                
             # === solve differential equation with diffrax
             if self.options.estimator: solution = dx.diffeqsolve(
                 self.terms,
