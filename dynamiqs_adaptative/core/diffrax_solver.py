@@ -15,8 +15,8 @@ from ..gradient import Autograd, CheckpointAutograd
 from .abstract_solver import BaseSolver
 from ..options import Options
 
-from ..solver import _ODEAdaptiveStep
 from .abstract_solver import State
+from ..a_posteriori.utils.utils import new_ts
 
 from .._utils import cdtype
 
@@ -51,9 +51,14 @@ class DiffraxSolver(BaseSolver):
                 adjoint = dx.RecursiveCheckpointAdjoint(self.gradient.ncheckpoints)
             elif isinstance(self.gradient, Autograd):
                 adjoint = dx.DirectAdjoint()
-                
+
+            def condition(state, **kwargs):
+                    jax.debug.print("error verif: {a}", a=state.y.err)
+                    return (state.y.err[0]).real >= 0.05
+            event = dx.DiscreteTerminatingEvent(cond_fn=condition)
             # === solve differential equation with diffrax
-            if self.options.estimator: solution = dx.diffeqsolve(
+            if self.options.estimator and not self.options.reshaping: 
+                solution = dx.diffeqsolve(
                 self.terms,
                 self.diffrax_solver,
                 t0=self.t0,
@@ -67,7 +72,95 @@ class DiffraxSolver(BaseSolver):
                 stepsize_controller=self.stepsize_controller,
                 adjoint=adjoint,
                 max_steps=self.max_steps,
-            )
+                )
+                # jax.debug.print("{s}", s = solution.ys.rho[-1])
+            elif self.options.estimator and self.options.reshaping:
+                solution = dx.diffeqsolve(
+                self.terms,
+                self.diffrax_solver,
+                t0=self.t0,
+                t1=self.ts[-1],
+                dt0=self.dt0,
+                y0=State(
+                    self.y0, # the solution at current time
+                    jnp.zeros(1, dtype = cdtype()), # the estimator at current time
+                ),
+                discrete_terminating_event=event,
+                saveat=saveat,
+                stepsize_controller=self.stepsize_controller,
+                adjoint=adjoint,
+                max_steps=self.max_steps,
+                )
+                # def condition(state, **kwargs):
+                #     jax.debug.print("error verif: {a}", a=state.y.err)
+                #     return (state.y.err[0]).real >= 0.05
+                # event = dx.DiscreteTerminatingEvent(cond_fn=condition)
+                # def cond_fun(state):
+                #     t0, t_end, _, _ = state
+                #     jax.debug.print("t0 = {a}, tend = {b}", a=t0, b=t_end)
+                #     return jnp.all(t0 != t_end)
+                # def body_fun(state):
+                #     t0, t_end, _y, _ = state
+                #     print(t0, t_end, _y)
+                #     # remaking ts and saveat
+                #     n_ts = new_ts(t0, self.ts)
+                #     print(n_ts, self.ts)
+                #     fn = lambda t, y, args: self.save(y)  # noqa: ARG005
+                #     subsaveat_a = dx.SubSaveAt(ts=n_ts, fn=fn)  # save solution regularly
+                #     subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
+                #     saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
+                #     solution = dx.diffeqsolve(
+                #         self.terms,
+                #         self.diffrax_solver,
+                #         t0=t0,
+                #         t1=t_end,
+                #         dt0=self.dt0,
+                #         y0=_y,
+                #         discrete_terminating_event=event,
+                #         saveat=saveat,
+                #         stepsize_controller=self.stepsize_controller,
+                #         adjoint=adjoint,
+                #         max_steps=self.max_steps,
+                #     )
+                #     new_t0 = solution.ts[-1][0]
+                #     # new_t0 = solution.ts[0]
+                #     _, new_y = solution.ys
+                #     new_y = State(new_y.rho[-1], jnp.zeros(1, dtype = cdtype()))
+                #     jax.debug.print("{a}", a=new_y.rho)
+                #     return (new_t0, t_end, new_y, solution) 
+                
+                # def run_solver(t0, t_end, _y):
+                #     # we run one first time to have a first solution
+                #     print(t0, t_end, _y)
+                #     solution = dx.diffeqsolve(
+                #         self.terms,
+                #         self.diffrax_solver,
+                #         t0=t0,
+                #         t1=t_end,
+                #         dt0=self.dt0,
+                #         y0=_y,
+                #         discrete_terminating_event=event,
+                #         saveat=saveat,
+                #         stepsize_controller=self.stepsize_controller,
+                #         adjoint=adjoint,
+                #         max_steps=self.max_steps,
+                #     )
+                #     new_t0 = solution.ts[-1][0]
+                #     # new_t0 = solution.ts[0]
+                #     _, new_y = solution.ys
+                #     new_y = State(new_y.rho[-1], jnp.zeros(1, dtype = cdtype()))
+                #     initial_state = (new_t0, t_end, new_y, solution)
+                #     final_state = jax.lax.while_loop(cond_fun, body_fun, initial_state)
+                #     _, _, _, solution = final_state
+                #     return solution
+
+                # # Run the solver
+                # ysol = State(
+                #         self.y0, # the solution at current time
+                #         jnp.zeros(1, dtype = cdtype()), # the estimator at current time
+                # )
+                # solution = run_solver(self.t0, self.ts[-1], ysol)         
+
             else: solution = dx.diffeqsolve(
                 self.terms,
                 self.diffrax_solver,
@@ -109,7 +202,12 @@ class DiffraxSolver(BaseSolver):
             jnp.linalg.norm(save_b.rho[0], ord='nuc') * self.solver.rtol), 
             true_fun, false_fun)
         else: saved = self.collect_saved(save_a, save_b[0])
-        return self.result(saved, infos=self.infos(solution.stats))
+        if not self.options.reshaping:
+            return self.result(saved, infos=self.infos(solution.stats))
+        else:
+            return [self.result(saved, infos=self.infos(solution.stats)), 
+                solution.ts[-1]
+            ]
 
     @abstractmethod
     def infos(self, stats: dict[str, Array]) -> PyTree:

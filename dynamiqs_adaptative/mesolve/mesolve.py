@@ -29,6 +29,7 @@ from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
 from ..a_posteriori.n_D.degree_guesser_nD import degree_guesser_nD_list
 from ..a_posteriori.n_D.projection_nD import projection_nD, dict_nD, mask
 from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
+from ..a_posteriori.utils.utils import find_approx_index
 import time
 
 __all__ = ['mesolve']
@@ -168,7 +169,7 @@ def mesolve(
                 Hred = _astimearray(Hred)
                 Lsred = [_astimearray(L) for L in Lsred]
                 t1 = time.time()
-                print(t1-t0)
+                # print(t1-t0)
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)
@@ -179,16 +180,34 @@ def mesolve(
 
     # we implement the jitted vmap in another function to pre-convert QuTiP objects
     # (which are not JIT-compatible) to JAX arrays
-    if options.estimator and options.tensorisation:
-        return _vmap_mesolve(
+    if options.estimator and options.tensorisation and not options.reshaping:
+        a = _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
                 , Hred, Lsred, _mask 
             )
+        
+        return a
+    elif options.estimator and options.tensorisation and options.reshaping:
+        a = _vmap_mesolve(
+                H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+                , Hred, Lsred, _mask 
+            )
+        while a[1][0]!=tsave[-1]:
+            steps = len(tsave) - find_approx_index(tsave, a[1])
+            new_tsave = jnp.linspace(a[1][0], tsave[-1], steps) # problem: it's not true time so the algo "clips" to the nearest value
+            # print(tsave, new_tsave)
+            a = _vmap_mesolve(
+                H, jump_ops, rho0, new_tsave
+                , exp_ops, solver, gradient, options
+                , Hred, Lsred, _mask 
+            )
+        return a[0]
     else:
         return _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
                 , None, None, None
             )
+    
 
 @partial(jax.jit, static_argnames=('solver', 'gradient', 'options'))
 def _vmap_mesolve(
@@ -287,13 +306,11 @@ def _mesolve(
             tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
             , None, None, None
         )
-
     # === run solver
     result = solver.run()
 
     # === return result
     return result  # noqa: RET504
-
 
 def _check_mesolve_args(
     H: TimeArray, jump_ops: list[TimeArray], rho0: Array, exp_ops: Array | None

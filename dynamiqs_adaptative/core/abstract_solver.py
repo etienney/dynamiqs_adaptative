@@ -14,6 +14,8 @@ from ..time_array import TimeArray
 from ..utils.utils import expect
 from ..options import Options
 
+import jax
+
 
 class AbstractSolver(eqx.Module):
     @abstractmethod
@@ -40,14 +42,13 @@ class BaseSolver(AbstractSolver):
     @property
     def t1(self) -> Scalar:
         return self.ts[-1]
-
+    
 
     def save(self, y) -> Saved:
         if isinstance(y, State):
             rho = y.rho
         else:
             rho = y
-
         ysave, Esave, extra, estimator = None, None, None, None
         if self.options.save_states:
             ysave = rho
@@ -56,7 +57,7 @@ class BaseSolver(AbstractSolver):
         if self.options.save_extra is not None:
             extra = self.options.save_extra(rho)
         if self.options.estimator and self.options.save_states:
-             estimator = y.err
+            estimator = y.err
         return Saved(ysave, Esave, extra, estimator)
 
     def collect_saved(self, saved: Saved, ylast: Array) -> Saved:
