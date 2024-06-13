@@ -193,7 +193,7 @@ def mesolve(
                 , Hred, Lsred, _mask 
             )
         while a[1][0]!=tsave[-1]:
-            steps = len(tsave) - find_approx_index(tsave, a[1])
+            steps = len(tsave) - find_approx_index(tsave, a[1]) + 1 # +1 in case the under
             new_tsave = jnp.linspace(a[1][0], tsave[-1], steps) # problem: it's not true time so the algo "clips" to the nearest value
             # print(tsave, new_tsave)
             a = _vmap_mesolve(
