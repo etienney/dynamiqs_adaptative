@@ -20,16 +20,15 @@ from ..gradient import Gradient
 from ..options import Options
 from ..result import MEResult
 from ..solver import Dopri5, Dopri8, Euler, Propagator, Solver, Tsit5
-from ..time_array import TimeArray, ConstantTimeArray
+from ..time_array import TimeArray
 from ..utils.utils import todm
 from .mediffrax import MEDopri5, MEDopri8, MEEuler, METsit5
 from .mepropagator import MEPropagator
 
-from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
-from ..a_posteriori.n_D.degree_guesser_nD import degree_guesser_nD_list
-from ..a_posteriori.n_D.projection_nD import projection_nD, dict_nD, mask
-from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
-from ..a_posteriori.utils.utils import find_approx_index
+from ..a_posteriori.utils.mesolve_fcts import (
+    mesolve_estimator_init,
+    mesolve_vmap_reshaping
+)
 import time
 
 __all__ = ['mesolve']
@@ -113,58 +112,7 @@ def mesolve(
     estimator = jnp.zeros(1, dtype = cdtype())
 
     # === estimator part
-    t0 = tsave[0]
-    if options.estimator:
-        if options.trunc_size is None:
-            if (
-                type(H)!=ConstantTimeArray or 
-                any([type(jump_ops[i])!=ConstantTimeArray 
-                for i in range(len(jump_ops))])
-            ):
-                jax.debug.print(
-                    'WARNING : If your array is not time dependant, beware that '
-                    'the truncature required to compute the estimator won\'t be '
-                    'trustworthy. See [link to the article] for more details. '
-                )
-            if options.tensorisation is None:
-                # Find the truncature needed to compute the estimator
-                trunc_size = degree_guesser_list(
-                    H(t0), jnp.stack([L(t0) for L in jump_ops])
-                )
-                # for the 2 see [the article]
-                trunc_size = 2 * trunc_size
-                tmp_dic=options.__dict__
-                tmp_dic['trunc_size']=int(trunc_size)
-                options=Options(**tmp_dic) 
-            else:
-                t0 = time.time()
-                H0 = H(t0)
-                L0 = jnp.stack([L(t0) for L in jump_ops])
-                lazy_tensorisation = options.tensorisation
-                # Find the truncature needed to compute the estimator
-                trunc_size = degree_guesser_nD_list(H0, L0, lazy_tensorisation)
-                # for the 2 see [the article]
-                trunc_size = [2 * x for x in trunc_size]
-                # tansform the trunctature into inegalities
-                inequalities = [
-                lambda *args, idx=idx, lt=lazy_tensorisation: 
-                args[idx] <= lt[idx] - (trunc_size[idx]+1)
-                for idx in range(len(lazy_tensorisation))
-                ]
-                tensorisation = tensorisation_maker(lazy_tensorisation)
-                _mask = mask(H0, dict_nD(tensorisation, inequalities))
-                Hred, *Lsred = projection_nD(
-                   [H0] + list(L0), tensorisation, inequalities, _mask
-                )
-                # We setup the results in options
-                tmp_dic=options.__dict__
-                tmp_dic['trunc_size'] = [x.item() for x in jnp.array(trunc_size)]
-                options=Options(**tmp_dic) 
-                # reconvert to Timearray args
-                Hred = _astimearray(Hred)
-                Lsred = [_astimearray(L) for L in Lsred]
-                t1 = time.time()
-                # print(t1-t0)
+    Hred, Lsred, _mask, options = mesolve_estimator_init(options, H, jump_ops, tsave)
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)
@@ -175,35 +123,15 @@ def mesolve(
 
     # we implement the jitted vmap in another function to pre-convert QuTiP objects
     # (which are not JIT-compatible) to JAX arrays
-    if options.estimator and options.tensorisation and not options.reshaping:
-        a = _vmap_mesolve(
-                H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask, estimator 
+    if options.estimator and options.tensorisation and options.reshaping:
+        return mesolve_vmap_reshaping(
+        H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+        , Hred, Lsred, _mask, estimator
             )
-        return a
-    elif options.estimator and options.tensorisation and options.reshaping:
-        a = _vmap_mesolve(
-                H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask, estimator
-            )
-        while a[1][0]!=tsave[-1]:
-            if options.save_states:
-                estimator = a[0].estimator[-1]
-            else:
-                estimator = a[0].estimator
-            steps = len(tsave) - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
-            new_tsave = jnp.linspace(a[1][0], tsave[-1], steps) # problem: it's not true time so the algo "clips" to the nearest value
-            # print(tsave, new_tsave)
-            a = _vmap_mesolve(
-                H, jump_ops, rho0, new_tsave
-                , exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask, estimator
-            )
-        return a[0]
     else:
         return _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , None, None, None, None
+                , Hred, Lsred, _mask, estimator
             )
     
 
@@ -224,32 +152,21 @@ def _vmap_mesolve(
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
-    if options.estimator and options.tensorisation:
-        is_batched = (
-            is_timearray_batched(H),
-            [is_timearray_batched(jump_op) for jump_op in jump_ops],
-            rho0.ndim > 2,
-            False,
-            False,
-            False,
-            False,
-            False,
-            is_timearray_batched(Hred),
-            [is_timearray_batched(L) for L in Lsred],
-            False,
-            False, # estimateur = False ?
-        )
-    else:
-        is_batched = (
-            is_timearray_batched(H),
-            [is_timearray_batched(jump_op) for jump_op in jump_ops],
-            rho0.ndim > 2,
-            False,
-            False,
-            False,
-            False,
-            False,
-        )
+    is_batched = (
+        is_timearray_batched(H),
+        [is_timearray_batched(jump_op) for jump_op in jump_ops],
+        rho0.ndim > 2,
+        False,
+        False,
+        False,
+        False,
+        False,
+        is_timearray_batched(Hred) if Hred is not None else False,
+        [is_timearray_batched(L) for L in Lsred] if Lsred is not None else False,
+        False,
+        False, # estimateur = False ?
+    )
+
     # the result is vectorized over `_saved` and `infos`
     out_axes = MEResult(None, None, None, None, 0, 0)
 
@@ -257,15 +174,9 @@ def _vmap_mesolve(
     f = compute_vmap(_mesolve, options.cartesian_batching, is_batched, out_axes)
 
     # === apply vectorized function
-    if options.estimator and options.tensorisation:
-        return f(
+    return f(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
             , Hred, Lsred, _mask, estimator
-        )
-    else:
-        return f(
-            H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-            , None, None, None, None
         )
 
 
@@ -297,15 +208,9 @@ def _mesolve(
     solver.assert_supports_gradient(gradient)
 
     # === init solver
-    if options.estimator and options.tensorisation:
-        solver = solver_class(
+    solver = solver_class(
             tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
             , Hred, Lsred, _mask, estimator
-        )
-    else:
-        solver = solver_class(
-            tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
-            , None, None, None, None
         )
     # === run solver
     result = solver.run()

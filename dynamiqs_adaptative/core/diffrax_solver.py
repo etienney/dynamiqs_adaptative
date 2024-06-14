@@ -16,7 +16,7 @@ from .abstract_solver import BaseSolver
 from ..options import Options
 
 from .abstract_solver import State
-from ..a_posteriori.utils.utils import new_ts
+from ..a_posteriori.utils.mesolve_fcts import mesolve_warning
 
 from .._utils import cdtype
 
@@ -52,14 +52,16 @@ class DiffraxSolver(BaseSolver):
             elif isinstance(self.gradient, Autograd):
                 adjoint = dx.DirectAdjoint()
 
+            # stop the diffrax integration if condition is reached (we will then restart
+            # a diffrax integration with a reshaping of H, L, rho)
             def condition(state, **kwargs):
                     jax.debug.print("error verif: {a}", a=state.y.err)
                     return self.estimator[0] + (state.y.err[0]).real >= 0.05
             event = dx.DiscreteTerminatingEvent(cond_fn=condition)
-            jax.debug.print("eee{e}", e = self.estimator)
+            jax.debug.print("estimator at start: {e}", e = self.estimator)
+            
             # === solve differential equation with diffrax
-            if self.options.estimator and not self.options.reshaping: 
-                solution = dx.diffeqsolve(
+            solution = dx.diffeqsolve(
                 self.terms,
                 self.diffrax_solver,
                 t0=self.t0,
@@ -68,144 +70,34 @@ class DiffraxSolver(BaseSolver):
                 y0=State(
                     self.y0, # the solution at current time
                     jnp.zeros(1, dtype = cdtype()), # the estimator at current time
-                ),
+                ) if self.options.estimator else self.y0,
+                discrete_terminating_event=event if self.options.reshaping else None,
                 saveat=saveat,
                 stepsize_controller=self.stepsize_controller,
                 adjoint=adjoint,
                 max_steps=self.max_steps,
                 )
-                # jax.debug.print("{s}", s = solution.ys.rho[-1])
-            elif self.options.estimator and self.options.reshaping:
-                solution = dx.diffeqsolve(
-                self.terms,
-                self.diffrax_solver,
-                t0=self.t0,
-                t1=self.ts[-1],
-                dt0=self.dt0,
-                y0=State(
-                    self.y0, # the solution at current time
-                    self.estimator, # the estimator at current time
-                ),
-                discrete_terminating_event=event,
-                saveat=saveat,
-                stepsize_controller=self.stepsize_controller,
-                adjoint=adjoint,
-                max_steps=self.max_steps,
-                )
-                # def condition(state, **kwargs):
-                #     jax.debug.print("error verif: {a}", a=state.y.err)
-                #     return (state.y.err[0]).real >= 0.05
-                # event = dx.DiscreteTerminatingEvent(cond_fn=condition)
-                # def cond_fun(state):
-                #     t0, t_end, _, _ = state
-                #     jax.debug.print("t0 = {a}, tend = {b}", a=t0, b=t_end)
-                #     return jnp.all(t0 != t_end)
-                # def body_fun(state):
-                #     t0, t_end, _y, _ = state
-                #     print(t0, t_end, _y)
-                #     # remaking ts and saveat
-                #     n_ts = new_ts(t0, self.ts)
-                #     print(n_ts, self.ts)
-                #     fn = lambda t, y, args: self.save(y)  # noqa: ARG005
-                #     subsaveat_a = dx.SubSaveAt(ts=n_ts, fn=fn)  # save solution regularly
-                #     subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
-                #     saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
-                #     solution = dx.diffeqsolve(
-                #         self.terms,
-                #         self.diffrax_solver,
-                #         t0=t0,
-                #         t1=t_end,
-                #         dt0=self.dt0,
-                #         y0=_y,
-                #         discrete_terminating_event=event,
-                #         saveat=saveat,
-                #         stepsize_controller=self.stepsize_controller,
-                #         adjoint=adjoint,
-                #         max_steps=self.max_steps,
-                #     )
-                #     new_t0 = solution.ts[-1][0]
-                #     # new_t0 = solution.ts[0]
-                #     _, new_y = solution.ys
-                #     new_y = State(new_y.rho[-1], jnp.zeros(1, dtype = cdtype()))
-                #     jax.debug.print("{a}", a=new_y.rho)
-                #     return (new_t0, t_end, new_y, solution) 
-                
-                # def run_solver(t0, t_end, _y):
-                #     # we run one first time to have a first solution
-                #     print(t0, t_end, _y)
-                #     solution = dx.diffeqsolve(
-                #         self.terms,
-                #         self.diffrax_solver,
-                #         t0=t0,
-                #         t1=t_end,
-                #         dt0=self.dt0,
-                #         y0=_y,
-                #         discrete_terminating_event=event,
-                #         saveat=saveat,
-                #         stepsize_controller=self.stepsize_controller,
-                #         adjoint=adjoint,
-                #         max_steps=self.max_steps,
-                #     )
-                #     new_t0 = solution.ts[-1][0]
-                #     # new_t0 = solution.ts[0]
-                #     _, new_y = solution.ys
-                #     new_y = State(new_y.rho[-1], jnp.zeros(1, dtype = cdtype()))
-                #     initial_state = (new_t0, t_end, new_y, solution)
-                #     final_state = jax.lax.while_loop(cond_fun, body_fun, initial_state)
-                #     _, _, _, solution = final_state
-                #     return solution
-
-                # # Run the solver
-                # ysol = State(
-                #         self.y0, # the solution at current time
-                #         jnp.zeros(1, dtype = cdtype()), # the estimator at current time
-                # )
-                # solution = run_solver(self.t0, self.ts[-1], ysol)         
-
-            else: solution = dx.diffeqsolve(
-                self.terms,
-                self.diffrax_solver,
-                t0=self.t0,
-                t1=self.ts[-1],
-                dt0=self.dt0,
-                y0=self.y0,
-                saveat=saveat,
-                stepsize_controller=self.stepsize_controller,
-                adjoint=adjoint,
-                max_steps=self.max_steps,
-            )
 
         # === collect and return results
         save_a, save_b = solution.ys
         if self.options.estimator:
+            # save also the estimator
             saved = self.collect_saved(
             save_a, [save_b.rho[0],save_b.err[0]]
             )
             # warn the user if the estimator's tolerance has been reached
-            def true_fun():
-                jax.debug.print(
-                    'WARNING : At this truncature of your simulation\'s size, '
-                    'it\'s not possible to warranty anymore the accuracy of '
-                    'your results. Try to enlarge the truncature'
-                )
-                jax.debug.print(
-                    "estimated error = {err} > {estimator_rtol} * tolerance = {tol}", 
-                    err = ((save_b.err[0][0]).real.astype(float)), tol = 
-                    self.options.estimator_rtol * (self.solver.atol + 
-                    jnp.linalg.norm(save_b.rho[0], ord='nuc') *
-                    self.solver.rtol), estimator_rtol = self.options.estimator_rtol 
-                )
-                return None
-            def false_fun():
-                return None
             jax.lax.cond(save_b.err[0][0] > self.options.estimator_rtol *
             (self.solver.atol + 
             jnp.linalg.norm(save_b.rho[0], ord='nuc') * self.solver.rtol), 
-            true_fun, false_fun)
-        else: saved = self.collect_saved(save_a, save_b[0])
+            mesolve_warning, lambda L: None
+            , [save_b,  self.options.estimator_rtol, 
+            self.solver.atol , self.solver.rtol])
+        else: 
+            saved = self.collect_saved(save_a, save_b[0])
         if not self.options.reshaping:
             return self.result(saved, infos=self.infos(solution.stats))
         else:
+            # give additional infos needed for the reshaping
             return [self.result(saved, infos=self.infos(solution.stats)), 
                 solution.ts[-1]
             ]
