@@ -110,9 +110,9 @@ def mesolve(
     rho0 = jnp.asarray(rho0, dtype=cdtype())
     tsave = jnp.asarray(tsave)
     exp_ops = jnp.asarray(exp_ops, dtype=cdtype()) if exp_ops is not None else None
+    estimator = jnp.zeros(1, dtype = cdtype())
 
     # === estimator part
-    # globalclass = Globalclass()
     t0 = tsave[0]
     if options.estimator:
         if options.trunc_size is None:
@@ -158,11 +158,6 @@ def mesolve(
                 )
                 # We setup the results in options
                 tmp_dic=options.__dict__
-                # we convert to hashable types (ie immutables).
-                # tmp_dic['projH'] = to_hashable(Hred)
-                # tmp_dic['projL'] = to_hashable(jnp.stack(jnp.array([Lsred for L in Lsred])))
-                # tmp_dic['projL'] = to_hashable(Lsred)
-                # tmp_dic['mask'] = to_hashable(_mask)
                 tmp_dic['trunc_size'] = [x.item() for x in jnp.array(trunc_size)]
                 options=Options(**tmp_dic) 
                 # reconvert to Timearray args
@@ -183,29 +178,32 @@ def mesolve(
     if options.estimator and options.tensorisation and not options.reshaping:
         a = _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask 
+                , Hred, Lsred, _mask, estimator 
             )
-        
         return a
     elif options.estimator and options.tensorisation and options.reshaping:
         a = _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask 
+                , Hred, Lsred, _mask, estimator
             )
         while a[1][0]!=tsave[-1]:
-            steps = len(tsave) - find_approx_index(tsave, a[1]) + 1 # +1 in case the under
+            if options.save_states:
+                estimator = a[0].estimator[-1]
+            else:
+                estimator = a[0].estimator
+            steps = len(tsave) - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
             new_tsave = jnp.linspace(a[1][0], tsave[-1], steps) # problem: it's not true time so the algo "clips" to the nearest value
             # print(tsave, new_tsave)
             a = _vmap_mesolve(
                 H, jump_ops, rho0, new_tsave
                 , exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask 
+                , Hred, Lsred, _mask, estimator
             )
         return a[0]
     else:
         return _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , None, None, None
+                , None, None, None, None
             )
     
 
@@ -222,6 +220,7 @@ def _vmap_mesolve(
     Hred: TimeArray | None,
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
+    estimator: Array | None
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
@@ -238,6 +237,7 @@ def _vmap_mesolve(
             is_timearray_batched(Hred),
             [is_timearray_batched(L) for L in Lsred],
             False,
+            False, # estimateur = False ?
         )
     else:
         is_batched = (
@@ -260,12 +260,12 @@ def _vmap_mesolve(
     if options.estimator and options.tensorisation:
         return f(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-            , Hred, Lsred, _mask
+            , Hred, Lsred, _mask, estimator
         )
     else:
         return f(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-            , None, None, None
+            , None, None, None, None
         )
 
 
@@ -281,6 +281,7 @@ def _mesolve(
     Hred: TimeArray | None,
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
+    estimator: Array | None,
 ) -> MEResult:
     # === select solver class
     solvers = {
@@ -299,12 +300,12 @@ def _mesolve(
     if options.estimator and options.tensorisation:
         solver = solver_class(
             tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
-            , Hred, Lsred, _mask
+            , Hred, Lsred, _mask, estimator
         )
     else:
         solver = solver_class(
             tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
-            , None, None, None
+            , None, None, None, None
         )
     # === run solver
     result = solver.run()

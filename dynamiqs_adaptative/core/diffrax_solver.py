@@ -54,8 +54,9 @@ class DiffraxSolver(BaseSolver):
 
             def condition(state, **kwargs):
                     jax.debug.print("error verif: {a}", a=state.y.err)
-                    return (state.y.err[0]).real >= 0.05
+                    return self.estimator[0] + (state.y.err[0]).real >= 0.05
             event = dx.DiscreteTerminatingEvent(cond_fn=condition)
+            jax.debug.print("eee{e}", e = self.estimator)
             # === solve differential equation with diffrax
             if self.options.estimator and not self.options.reshaping: 
                 solution = dx.diffeqsolve(
@@ -83,7 +84,7 @@ class DiffraxSolver(BaseSolver):
                 dt0=self.dt0,
                 y0=State(
                     self.y0, # the solution at current time
-                    jnp.zeros(1, dtype = cdtype()), # the estimator at current time
+                    self.estimator, # the estimator at current time
                 ),
                 discrete_terminating_event=event,
                 saveat=saveat,

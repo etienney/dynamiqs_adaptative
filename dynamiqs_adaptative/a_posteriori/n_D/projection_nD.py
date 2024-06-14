@@ -1,6 +1,8 @@
 import jax.numpy as jnp
 
-def projection_nD(objs, original_tensorisation, inequalities, _mask = None):
+def projection_nD(
+        objs, original_tensorisation = None, inequalities = None, _mask = None
+):
     # create a tensorial projection of some n dimensional matrix "objs" tensorised under 
     # "original_tensorisation"  into matrixs "new_objs" projected according to
     # some inequalities "inequalities"
@@ -23,6 +25,8 @@ def projection_nD(objs, original_tensorisation, inequalities, _mask = None):
     new_objs = objs
     # if dictio is already known we don't calculate it
     if _mask is None:
+        if original_tensorisation is None or inequalities is None:
+            raise ValueError(" You have to either give a mask or a tensorisation with some inequalities")
         dictio = dict_nD(original_tensorisation, inequalities)
         _mask = mask(new_objs[0], dictio)
     for i in range(len(new_objs)):
