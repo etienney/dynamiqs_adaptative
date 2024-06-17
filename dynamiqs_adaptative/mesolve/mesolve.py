@@ -27,8 +27,9 @@ from .mepropagator import MEPropagator
 
 from ..a_posteriori.utils.mesolve_fcts import (
     mesolve_estimator_init,
-    mesolve_vmap_reshaping
+    latest_non_inf_index
 )
+from ..a_posteriori.utils.utils import find_approx_index
 import time
 
 __all__ = ['mesolve']
@@ -124,10 +125,26 @@ def mesolve(
     # we implement the jitted vmap in another function to pre-convert QuTiP objects
     # (which are not JIT-compatible) to JAX arrays
     if options.estimator and options.tensorisation and options.reshaping:
-        return mesolve_vmap_reshaping(
+        a = _vmap_mesolve(
         H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
         , Hred, Lsred, _mask, estimator
+    )
+        while a[1][0]!=tsave[-1]:
+            old_steps = len(tsave) 
+            new_steps = old_steps - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
+            new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true time so the algo "clips" to the nearest value
+            # because it is stored differently if save_states is on...
+            estimator = (
+                a[0].estimator[latest_non_inf_index(a[0].estimator)] 
+                if options.save_states else a[0].estimator
             )
+            # print(tsave, new_tsave)
+            a = _vmap_mesolve(
+                H, jump_ops, rho0, new_tsave
+                , exp_ops, solver, gradient, options
+                , Hred, Lsred, _mask, estimator
+            )
+        return a[0]
     else:
         return _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options

@@ -55,10 +55,13 @@ class DiffraxSolver(BaseSolver):
             # stop the diffrax integration if condition is reached (we will then restart
             # a diffrax integration with a reshaping of H, L, rho)
             def condition(state, **kwargs):
-                    jax.debug.print("error verif: {a}", a=state.y.err)
-                    return self.estimator[0] + (state.y.err[0]).real >= 0.05
+                jax.debug.print("error verif: {a}", a=state.y.err)
+                # jax.debug.print("rho: {a}", a=state.y.rho)
+                return self.estimator[0] + (state.y.err[0]).real >= state.tprev * (
+                    self.options.estimator_rtol * (self.solver.atol + 
+                    jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
+                    )
             event = dx.DiscreteTerminatingEvent(cond_fn=condition)
-            jax.debug.print("estimator at start: {e}", e = self.estimator)
             
             # === solve differential equation with diffrax
             solution = dx.diffeqsolve(
@@ -69,7 +72,8 @@ class DiffraxSolver(BaseSolver):
                 dt0=self.dt0,
                 y0=State(
                     self.y0, # the solution at current time
-                    jnp.zeros(1, dtype = cdtype()), # the estimator at current time
+                    self.estimator if self.estimator is not None
+                    else jnp.zeros(1, dtype = cdtype()), # the estimator at current time
                 ) if self.options.estimator else self.y0,
                 discrete_terminating_event=event if self.options.reshaping else None,
                 saveat=saveat,
@@ -184,3 +188,14 @@ class Dopri8Solver(AdaptiveSolver):
 
 class Tsit5Solver(AdaptiveSolver):
     diffrax_solver = dx.Tsit5()
+
+# class TerminationEvent(dx.DiscreteTerminatingEvent):
+#     err_tm1:float
+#     def __init__(self):
+#         self.err_tm1=0
+#     def __call__(self, state, **kwargs):
+#         jax.debug.print("error verif: {a}", a=state.y.err)
+#         err_tm1=self.err_tm1
+#         self.err_tm1=state.y.err[0]
+#         jax.debug.print("error estim: {a}", a= (err_tm1[0]-state.y.err[0]).real)
+#         return (err_tm1[0]-state.y.err[0]).real >= 0.05

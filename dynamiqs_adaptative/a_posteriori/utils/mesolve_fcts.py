@@ -3,13 +3,14 @@ from ..n_D.degree_guesser_nD import degree_guesser_nD_list
 from ..n_D.projection_nD import projection_nD, dict_nD, mask
 from ..n_D.tensorisation_maker import tensorisation_maker
 from ...core._utils import _astimearray
-from ...mesolve.mesolve import _vmap_mesolve
+# from ...mesolve.mesolve import _vmap_mesolve
 from .utils import find_approx_index
 from ...time_array import ConstantTimeArray
 from ...options import Options
 
 import jax
 import jax.numpy as jnp
+import math
 
 def mesolve_estimator_init(options, H, jump_ops, tsave):
     # to init the arguments necessary for the estimator and the reshaping
@@ -84,25 +85,32 @@ def mesolve_warning(L):
     )
     return None
 
-def mesolve_vmap_reshaping(
-    H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, Hred, Lsred, _mask
-    , estimator
-    ):
-    a = _vmap_mesolve(
-        H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-        , Hred, Lsred, _mask, estimator
-    )
-    while a[1][0]!=tsave[-1]:
-        if options.save_states:
-            estimator = a[0].estimator[-1]
-        else:
-            estimator = a[0].estimator
-        steps = len(tsave) - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
-        new_tsave = jnp.linspace(a[1][0], tsave[-1], steps) # problem: it's not true time so the algo "clips" to the nearest value
-        # print(tsave, new_tsave)
-        a = _vmap_mesolve(
-            H, jump_ops, rho0, new_tsave
-            , exp_ops, solver, gradient, options
-            , Hred, Lsred, _mask, estimator
-        )
-    return a[0]
+def latest_non_inf_index(lst):
+    for i in range(len(lst) - 1, -1, -1):
+        if lst[i] != math.inf:
+            return i
+    return None  # If all elements are `inf`, return None
+
+# problem of cycling imports... not understood
+# def mesolve_vmap_reshaping(
+#     H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, Hred, Lsred, _mask
+#     , estimator
+#     ):
+#     a = _vmap_mesolve(
+#         H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+#         , Hred, Lsred, _mask, estimator
+#     )
+#     while a[1][0]!=tsave[-1]:
+#         if options.save_states:
+#             estimator = a[0].estimator[-1]
+#         else:
+#             estimator = a[0].estimator
+#         steps = len(tsave) - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
+#         new_tsave = jnp.linspace(a[1][0], tsave[-1], steps) # problem: it's not true time so the algo "clips" to the nearest value
+#         # print(tsave, new_tsave)
+#         a = _vmap_mesolve(
+#             H, jump_ops, rho0, new_tsave
+#             , exp_ops, solver, gradient, options
+#             , Hred, Lsred, _mask, estimator
+#         )
+#     return a[0]
