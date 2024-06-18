@@ -55,28 +55,13 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
 
         def vector_field_estimator_nD(t, y: State, _):
             # run the simulation for a smaller size than the defined tensorisation..
-            
-            t1 = time.time()    
-            y_true = y.rho
-            lazy_tensorisation = self.options.tensorisation
-            tensorisation = tensorisation_maker(lazy_tensorisation)
-            trunc_size = self.options.trunc_size
-            # transpose the truncature into inequalities to verify for the tensorisation
-            # it will make the expected square truncature (in the modes) when we apply
-            # projection_nD
-            t11 = time.time()
-            inequalities = [
-            lambda *args, idx=idx, lt=lazy_tensorisation: 
-            args[idx] <= lt[idx] - (trunc_size[idx]+1)
-            for idx in range(len(lazy_tensorisation))
-            ]
-            t12 = time.time()
             # instead of really reducing the operators to a smaller sized space, we will
             # project all of them on a smaller sized space (the result is the same)
+            t1 = time.time()    
+            y_true = y.rho
             GLs = jnp.stack([L(t) for L in self.Ls])
-            t120 = time.time()
             rho = projection_nD(
-                [y_true], tensorisation, inequalities, self._mask
+                [y_true], None, None, self._mask
             )[0]
             t121 = time.time()
             # jax.debug.print("{a}", a= t121-t120)

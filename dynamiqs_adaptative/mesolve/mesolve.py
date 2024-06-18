@@ -116,7 +116,7 @@ def mesolve(
     Hred, Lsred, _mask, options, inequalities, tensorisation = (
         mesolve_estimator_init(options, H, jump_ops, tsave)
     )
-    L_reshapings = []
+    L_reshapings = [] # to store the reshapings if options.reshaping
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)
@@ -127,12 +127,13 @@ def mesolve(
 
     # we implement the jitted vmap in another function to pre-convert QuTiP objects
     # (which are not JIT-compatible) to JAX arrays
-    if options.estimator and options.tensorisation and options.reshaping:
+    if options.estimator and options.tensorisation is not None and options.reshaping:
         a = _vmap_mesolve(
         H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
         , Hred, Lsred, _mask, estimator, L_reshapings
         )
         while a[1][0]!=tsave[-1]:
+            
             old_steps = len(tsave) 
             new_steps = old_steps - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
             new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true time so the algo "clips" to the nearest value

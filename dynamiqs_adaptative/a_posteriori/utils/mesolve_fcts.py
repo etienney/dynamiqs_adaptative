@@ -2,6 +2,7 @@ from ..one_D.degree_guesser_1D import degree_guesser_list
 from ..n_D.degree_guesser_nD import degree_guesser_nD_list
 from ..n_D.projection_nD import projection_nD, dict_nD, mask
 from ..n_D.tensorisation_maker import tensorisation_maker
+from ..n_D.inequalities import generate_rec_ineq
 from ...core._utils import _astimearray
 # from ...mesolve.mesolve import _vmap_mesolve
 from .utils import find_approx_index
@@ -51,11 +52,9 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
                 trunc_size = [2 * x for x in trunc_size]
                 # tansform the trunctature into inegalities (+1 to account for the fact  
                 # that matrix index start at 0)
-                inequalities = [
-                lambda *args, idx=idx, lt=lazy_tensorisation: 
-                args[idx] <= lt[idx] - (trunc_size[idx]+1)
-                for idx in range(len(lazy_tensorisation))
-                ]
+                inequalities = generate_rec_ineq(
+                    [a - b for a, b in zip(lazy_tensorisation, trunc_size)]
+                )
                 tensorisation = tensorisation_maker(lazy_tensorisation)
                 _mask = mask(H0, dict_nD(tensorisation, inequalities))
                 Hred, *Lsred = projection_nD(

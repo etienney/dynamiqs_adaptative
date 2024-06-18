@@ -175,6 +175,16 @@ def ineq_to_tensorisation(old_inequalities, max_tensorisation):
             old_tensorisation.append(tensor)
     return old_tensorisation
 
+def ineq_from_params(f, param, lazy_tensorisation):
+    # Get the number of arguments the function f takes
+    num_args = len(lazy_tensorisation[0])
+    # Create argument names dynamically
+    arg_names = [f'i{i}' for i in range(num_args)]
+    lambda_str = f"lambda {', '.join(arg_names)}: f({', '.join(arg_names)}) < param"
+    # Create the lambda function
+    lambda_func = eval(lambda_str, {'f': f, 'N': param})
+    return lambda_func
+
 def unit_test_projection_nD():
     original_tensorisation = ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2))
     inequalities = [lambda i, j: i <= 1, lambda i, j: j <= 1]
