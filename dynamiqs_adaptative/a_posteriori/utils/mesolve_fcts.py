@@ -16,7 +16,7 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
     # to init the arguments necessary for the estimator and the reshaping
 
     # setup empty values
-    Hred, Lsred, _mask = None, None, None
+    Hred, Lsred, _mask, inequalities, tensorisation = None, None, None, None, None
     if options.estimator:
         if options.trunc_size is None:
             if (
@@ -68,7 +68,7 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
                 # reconvert to Timearray args
                 Hred = _astimearray(Hred)
                 Lsred = [_astimearray(L) for L in Lsred]
-    return Hred, Lsred, _mask, options
+    return Hred, Lsred, _mask, options, inequalities, tensorisation
 
 def mesolve_warning(L):
     save_b,  estimator_rtol, atol , rtol = L

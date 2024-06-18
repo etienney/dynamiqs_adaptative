@@ -113,7 +113,10 @@ def mesolve(
     estimator = jnp.zeros(1, dtype = cdtype())
 
     # === estimator part
-    Hred, Lsred, _mask, options = mesolve_estimator_init(options, H, jump_ops, tsave)
+    Hred, Lsred, _mask, options, inequalities, tensorisation = (
+        mesolve_estimator_init(options, H, jump_ops, tsave)
+    )
+    L_reshapings = []
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)
@@ -127,28 +130,30 @@ def mesolve(
     if options.estimator and options.tensorisation and options.reshaping:
         a = _vmap_mesolve(
         H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-        , Hred, Lsred, _mask, estimator
-    )
+        , Hred, Lsred, _mask, estimator, L_reshapings
+        )
         while a[1][0]!=tsave[-1]:
             old_steps = len(tsave) 
             new_steps = old_steps - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
             new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true time so the algo "clips" to the nearest value
             # because it is stored differently if save_states is on...
+            latest_index = latest_non_inf_index(a[0].estimator)
             estimator = (
-                a[0].estimator[latest_non_inf_index(a[0].estimator)] 
-                if options.save_states else a[0].estimator
+                a[0].estimator[latest_index] if options.save_states else a[0].estimator
             )
-            # print(tsave, new_tsave)
+            rho0 = (
+                a[0].states[latest_index] if options.save_states else a[0].states
+            )
             a = _vmap_mesolve(
                 H, jump_ops, rho0, new_tsave
                 , exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask, estimator
+                , Hred, Lsred, _mask, estimator, L_reshapings
             )
         return a[0]
     else:
         return _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask, estimator
+                , Hred, Lsred, _mask, estimator, L_reshapings
             )
     
 
@@ -165,7 +170,8 @@ def _vmap_mesolve(
     Hred: TimeArray | None,
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
-    estimator: Array | None
+    estimator: Array | None,
+    L_reshapings: list | None,
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
@@ -182,6 +188,7 @@ def _vmap_mesolve(
         [is_timearray_batched(L) for L in Lsred] if Lsred is not None else False,
         False,
         False, # estimateur = False ?
+        False,
     )
 
     # the result is vectorized over `_saved` and `infos`
@@ -193,7 +200,7 @@ def _vmap_mesolve(
     # === apply vectorized function
     return f(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-            , Hred, Lsred, _mask, estimator
+            , Hred, Lsred, _mask, estimator, L_reshapings
         )
 
 
@@ -210,6 +217,7 @@ def _mesolve(
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
     estimator: Array | None,
+    L_reshapings: list | None,
 ) -> MEResult:
     # === select solver class
     solvers = {
@@ -227,7 +235,7 @@ def _mesolve(
     # === init solver
     solver = solver_class(
             tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
-            , Hred, Lsred, _mask, estimator
+            , Hred, Lsred, _mask, estimator, L_reshapings
         )
     # === run solver
     result = solver.run()
