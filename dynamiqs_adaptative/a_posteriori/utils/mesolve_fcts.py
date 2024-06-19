@@ -2,7 +2,7 @@ from ..one_D.degree_guesser_1D import degree_guesser_list
 from ..n_D.degree_guesser_nD import degree_guesser_nD_list
 from ..n_D.projection_nD import projection_nD, dict_nD, mask
 from ..n_D.tensorisation_maker import tensorisation_maker
-from ..n_D.inequalities import generate_rec_ineq
+from ..n_D.inequalities import generate_rec_ineqs
 from ...core._utils import _astimearray
 # from ...mesolve.mesolve import _vmap_mesolve
 from .utils import find_approx_index
@@ -16,8 +16,6 @@ import math
 def mesolve_estimator_init(options, H, jump_ops, tsave):
     # to init the arguments necessary for the estimator and the reshaping
 
-    # setup empty values
-    Hred, Lsred, _mask, inequalities, tensorisation = None, None, None, None, None
     if options.estimator:
         if options.trunc_size is None:
             if (
@@ -52,8 +50,8 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
                 trunc_size = [2 * x for x in trunc_size]
                 # tansform the trunctature into inegalities (+1 to account for the fact  
                 # that matrix index start at 0)
-                inequalities = generate_rec_ineq(
-                    [a - b for a, b in zip(lazy_tensorisation, trunc_size)]
+                inequalities = generate_rec_ineqs(
+                    [a - b + 1 for a, b in zip(lazy_tensorisation, trunc_size)]
                 )
                 tensorisation = tensorisation_maker(lazy_tensorisation)
                 _mask = mask(H0, dict_nD(tensorisation, inequalities))
@@ -67,6 +65,9 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
                 # reconvert to Timearray args
                 Hred = _astimearray(Hred)
                 Lsred = [_astimearray(L) for L in Lsred]
+    else:
+        # setup empty values
+        Hred, Lsred, _mask, inequalities, tensorisation = None, None, None, None, None
     return Hred, Lsred, _mask, options, inequalities, tensorisation
 
 def mesolve_warning(L):
@@ -85,6 +86,7 @@ def mesolve_warning(L):
     return None
 
 def latest_non_inf_index(lst):
+    # find the latest elements in a list that is not inf
     for i in range(len(lst) - 1, -1, -1):
         if lst[i] != math.inf:
             return i

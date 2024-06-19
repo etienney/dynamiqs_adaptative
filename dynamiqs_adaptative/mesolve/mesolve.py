@@ -30,6 +30,11 @@ from ..a_posteriori.utils.mesolve_fcts import (
     latest_non_inf_index
 )
 from ..a_posteriori.utils.utils import find_approx_index
+from ..a_posteriori.n_D.inequalities import *
+from ..a_posteriori.n_D.projection_nD import (
+    reduction_nD, extension_nD, projection_nD, mask, dict_nD
+)
+from ..a_posteriori.n_D.reshapings import reshaping_init#, reshaping_extend
 import time
 
 __all__ = ['mesolve']
@@ -125,15 +130,22 @@ def mesolve(
     # === convert rho0 to density matrix
     rho0 = todm(rho0)
 
-    # we implement the jitted vmap in another function to pre-convert QuTiP objects
-    # (which are not JIT-compatible) to JAX arrays
     if options.estimator and options.tensorisation is not None and options.reshaping:
+        # a first reshaping to reduce 
+        H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = reshaping_init(
+            tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, options, _mask, solver
+        )
         a = _vmap_mesolve(
-        H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-        , Hred, Lsred, _mask, estimator, L_reshapings
+            H_mod, jump_ops_mod, rho0_mod, tsave, exp_ops, solver, gradient, options
+            , Hred_mod, Lsred_mod, _mask, estimator, L_reshapings
         )
         while a[1][0]!=tsave[-1]:
-            
+            L_reshapings = a[2]
+            # if L_reshapings[-1]==1:
+            #     H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = (
+            #     reshaping_extend(tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, 
+            #     options, _mask, solver)
+            #     )
             old_steps = len(tsave) 
             new_steps = old_steps - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
             new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true time so the algo "clips" to the nearest value
@@ -146,12 +158,14 @@ def mesolve(
                 a[0].states[latest_index] if options.save_states else a[0].states
             )
             a = _vmap_mesolve(
-                H, jump_ops, rho0, new_tsave
+                H_mod, jump_ops_mod, rho0_mod, new_tsave
                 , exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask, estimator, L_reshapings
+                , Hred_mod, Lsred_mod, _mask, estimator, L_reshapings
             )
         return a[0]
     else:
+        # we implement the jitted vmap in another function to pre-convert QuTiP objects
+        # (which are not JIT-compatible) to JAX arrays
         return _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
                 , Hred, Lsred, _mask, estimator, L_reshapings
@@ -238,6 +252,7 @@ def _mesolve(
             tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
             , Hred, Lsred, _mask, estimator, L_reshapings
         )
+    
     # === run solver
     result = solver.run()
 

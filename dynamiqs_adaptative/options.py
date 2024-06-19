@@ -35,12 +35,17 @@ class Options(eqx.Module):
             if not 'None' explain to the estimator that we are dealing with
             a n dimensional object. An input could be (2,3) for an object tensorised 
             according to ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2)) for instance.
-        inequalities: (expects estimator to be 'True', and tensorisation to be given)
-            for a n-dimensional object, you can give your own truncature to the
-            estimator. It has to take the form of inequalities like that :
-            [lambda i, j: i <= 2 , lambda i, j: j <= 3] for a 2-dimensional
-            tensorisation for instance, to not exceed {|ij><ij|, i<=2, j<=3} for the
-            density matrix.
+        inequalities: (expects estimator and reshaping to be 'True', tensorisation to be 
+            given)
+            For a n-dimensional object, you can give your own truncature to the
+            estimator. It has to be formated like a list of 2 objects list [param, f].
+            param: a float.
+            f: a function that has len("number of dimensions") inputs and outputs a 
+            float.
+            Exemple: [param = 2, f = def f(i, j): return i+j] for a 2D tensorisation
+            gives [lambda i, j: i+j < 2]    
+            Default inequalities are rectangular ones (rectangular in the dimensions),
+            such as [lambda i0, .., in: i0 < param0, etc...]
         reshaping: (expects estimator to be 'True')
             if 'True' activates a dynamic reshaping of the simulation's size.
             It expects that you give operators much larger than needed for the

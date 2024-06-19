@@ -40,9 +40,8 @@ def projection_nD(
 
 def reduction_nD(objs, original_tensorisation, inequalities):
     """
-    same as projection_nD but delete lines instead of putting zeros
+    same as projection_nD but delete lines instead of putting zeros.
     """
-
     new_objs = []
     # Sort positions in descending order to avoid shifting issues
     dictio = sorted(dict_nD(original_tensorisation, inequalities), reverse=True)
@@ -73,13 +72,14 @@ def extension_nD(
     """
     old_tensorisation = ineq_to_tensorisation(old_inequalities, max_tensorisation)
     lenobjs = len(objs)
-    # Iterate over all possible indices within max_tensorisation
+    # Iterate over all possible indices within max_tensorisation 
+    # (recreates a lazy_tensorisation)
     indices = [range(max_dim) for max_dim in max_tensorisation]
     index = 0
     for tensor in itertools.product(*indices):
         # Check if the conditions are satisfied
         if all(ineq(*tensor) for ineq in inequalities) or bypass: 
-            if tensor not in old_tensorisation or bypass:  # ajoute du * n a la complexité, peut etre a virer
+            if tensor not in old_tensorisation:  # ajoute du * n a la complexité, peut etre a virer
                 for i in range(lenobjs):
                     # Extend the matrix by adding zero rows and columns
                     objs[i] = add_zeros_line(objs[i], index)
@@ -175,15 +175,6 @@ def ineq_to_tensorisation(old_inequalities, max_tensorisation):
             old_tensorisation.append(tensor)
     return old_tensorisation
 
-def ineq_from_params(f, param, lazy_tensorisation):
-    # Get the number of arguments the function f takes
-    num_args = len(lazy_tensorisation[0])
-    # Create argument names dynamically
-    arg_names = [f'i{i}' for i in range(num_args)]
-    lambda_str = f"lambda {', '.join(arg_names)}: f({', '.join(arg_names)}) < param"
-    # Create the lambda function
-    lambda_func = eval(lambda_str, {'f': f, 'N': param})
-    return lambda_func
 
 def unit_test_projection_nD():
     original_tensorisation = ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2))
