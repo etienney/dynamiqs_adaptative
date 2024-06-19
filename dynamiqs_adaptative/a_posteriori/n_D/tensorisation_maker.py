@@ -1,4 +1,5 @@
 from itertools import product
+from ..utils.utils import tuple_to_list
 
 def tensorisation_maker(lazy_tensorisation):
     # from a lazy_tensorisation for a n_1*..*n_m tensorisation we obtain a more detailed 
@@ -6,7 +7,7 @@ def tensorisation_maker(lazy_tensorisation):
     # rectangular one through inequalities.
     # as an exemple (2,3) should ouput ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2)).
 
-    tensorisation = tuple(product(*[range(dim) for dim in lazy_tensorisation]))
+    tensorisation = tuple_to_list(tuple(product(*[range(dim) for dim in lazy_tensorisation]))) # stupide de tuple->list. a changer demain
     
     return tensorisation
 

@@ -27,7 +27,7 @@ def projection_nD(
     """
 
     new_objs = objs
-    # if dictio is already known we don't calculate it
+    # if _mask is already known we don't calculate it
     if _mask is None:
         if original_tensorisation is None or inequalities is None:
             raise ValueError(" You have to either give a mask or a tensorisation with some inequalities")
@@ -38,21 +38,25 @@ def projection_nD(
 
     return new_objs
 
-def reduction_nD(objs, original_tensorisation, inequalities):
+def reduction_nD(objs, tensorisation, inequalities):
     """
     same as projection_nD but delete lines instead of putting zeros.
     """
     new_objs = []
     # Sort positions in descending order to avoid shifting issues
-    dictio = sorted(dict_nD(original_tensorisation, inequalities), reverse=True)
+    dictio = sorted(dict_nD(tensorisation, inequalities), reverse=True)
     for i in range(len(objs)):
+        if i ==0:
+            tensorisation = recursive_delete(tensorisation, dictio, tens=True)
         new_objs.append(recursive_delete(objs[i], dictio))
 
-    return new_objs
+    return new_objs, tensorisation
 
 def extension_nD(
-        objs, old_inequalities, max_tensorisation, inequalities, bypass = False
+        objs, old_tensorisation, max_tensorisation, inequalities, options, bypass = False
 ):
+    # rem : il faudrait que la max_tensorisation prennent en compte - trunc_size pour
+    # pouvoir toujours compute l'estimateur
     """
     Extend the objs up to the max_tensorisation by putting zeros cols and rows in spots
     where the inequalities are satisfied and there is no rows and cols.
@@ -70,22 +74,30 @@ def extension_nD(
     Returns:
     objs: list of matrices with zeros placed.
     """
-    old_tensorisation = ineq_to_tensorisation(old_inequalities, max_tensorisation)
+    # old_tensorisation = ineq_to_tensorisation(old_inequalities, max_tensorisation)
     lenobjs = len(objs)
     # Iterate over all possible indices within max_tensorisation 
     # (recreates a lazy_tensorisation)
     indices = [range(max_dim) for max_dim in max_tensorisation]
+    lentensor = len(max_tensorisation)
     index = 0
     for tensor in itertools.product(*indices):
         # Check if the conditions are satisfied
         if all(ineq(*tensor) for ineq in inequalities) or bypass: 
+            for i in range(lentensor):
+                if max_tensorisation[i]==(tensor[i] + options.trunc_size[i]):
+                    # we reach the max size of the matrices given as inputs
+                    print('WARNING the size of the objects you gave is too small to'
+                           'warranty a solution accurate up to solver precision')
             if tensor not in old_tensorisation:  # ajoute du * n a la complexité, peut etre a virer
                 for i in range(lenobjs):
                     # Extend the matrix by adding zero rows and columns
                     objs[i] = add_zeros_line(objs[i], index)
+                old_tensorisation.append(tensor)
         index += 1
-
-    return objs
+    # sort in the good order the new tensorisation
+    tensorisation = sorted(old_tensorisation, key=lambda x: tuple(reversed(x)))
+    return objs, tensorisation
 
 def dict_nD(original_tensorisation, inequalities):
     # dictio will make us able to repertoriate the indices to suppress
@@ -150,15 +162,21 @@ def zeros_old(obj, pos):
     
     return obj
 
-def delete(obj,pos):
-    # delete the line and col of a matrix "obj" by reference to a position "pos"
-    return jnp.delete(jnp.delete(obj, pos, axis=0), pos, axis=1)
+def delete(obj, pos, tens):
+    if tens:
+        # if we act on the tensorisation , delete the tensors that will be deleted in
+        # the matrices concerned by reduction_nd
+        del obj[pos]
+        return obj
+    else:
+        # delete the line and col of a matrix "obj" by reference to a position "pos"
+        return jnp.delete(jnp.delete(obj, pos, axis=0), pos, axis=1)
 
-def recursive_delete(obj, positions):
+def recursive_delete(obj, positions, tens=False):
     if not positions:
         return obj
     # Delete the first position in the list and call recursively for the rest
-    return recursive_delete(delete(obj, positions[0]), positions[1:])
+    return recursive_delete(delete(obj, positions[0], tens), positions[1:], tens)
 
 def ineq_to_tensorisation(old_inequalities, max_tensorisation):
     """

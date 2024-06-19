@@ -60,6 +60,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             t1 = time.time()    
             y_true = y.rho
             GLs = jnp.stack([L(t) for L in self.Ls])
+            GH = self.H(t)
             rho = projection_nD(
                 [y_true], None, None, self._mask
             )[0]
@@ -76,7 +77,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             drho = tmp + dag(tmp)
             t3 = time.time()
             derr = estimator_derivate_opti_nD(
-                drho, self.H(t), GLs, rho
+                drho, GH, GLs, rho
             )
             t4 = time.time()
             # jax.debug.print("{z}, {e}", z =t3-t2, e=t4-t3)

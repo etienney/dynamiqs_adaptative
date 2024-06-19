@@ -34,7 +34,7 @@ from ..a_posteriori.n_D.inequalities import *
 from ..a_posteriori.n_D.projection_nD import (
     reduction_nD, extension_nD, projection_nD, mask, dict_nD
 )
-from ..a_posteriori.n_D.reshapings import reshaping_init#, reshaping_extend
+from ..a_posteriori.n_D.reshapings import reshaping_init, reshaping_extend
 import time
 
 __all__ = ['mesolve']
@@ -141,11 +141,11 @@ def mesolve(
         )
         while a[1][0]!=tsave[-1]:
             L_reshapings = a[2]
-            # if L_reshapings[-1]==1:
-            #     H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = (
-            #     reshaping_extend(tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, 
-            #     options, _mask, solver)
-            #     )
+            if L_reshapings[-1]==1:
+                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = (
+                reshaping_extend(tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, 
+                options, _mask, solver)
+                )
             old_steps = len(tsave) 
             new_steps = old_steps - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
             new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true time so the algo "clips" to the nearest value
