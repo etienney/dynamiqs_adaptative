@@ -138,14 +138,39 @@ def mask(obj, dict):
         mask = jnp.where(jnp.arange(obj.shape[1])[None, :] == x, False, mask)  # Zero out column
 
     return mask
+
 def add_zeros_line(matrix, k):
+    """
+    Add a zero row and a zero column at index k to a given matrix.
+
+    Args:
+    matrix: input matrix (JAX array)
+    k: index where zero row and column should be inserted
+
+    Returns:
+    modified_matrix: matrix with zero row and column added
+    """
+    # Adding zero row
+    top_part = matrix[:k, :]
+    bottom_part = matrix[k:, :]
+    zero_line = jnp.zeros((1, matrix.shape[1]))
+    matrix_with_zero_row = jnp.concatenate([top_part, zero_line, bottom_part], axis=0)
+    
+    # Adding zero column
+    left_part = matrix_with_zero_row[:, :k]
+    right_part = matrix_with_zero_row[:, k:]
+    zero_column = jnp.zeros((matrix_with_zero_row.shape[0], 1))
+    modified_matrix = jnp.concatenate([left_part, zero_column, right_part], axis=1)
+    
+    return modified_matrix
+
+def add_zeros_line_old_insert(matrix, k):
     """
     Add a zero row or column at index k to a given matrix.
 
     Args:
     matrix: input matrix (JAX array)
     k: index where zero row or column should be inserted
-    axis: axis along which to insert (0 for row, 1 for column, etc.)
 
     Returns:
     modified_matrix: matrix with zero row or column added
@@ -156,6 +181,30 @@ def add_zeros_line(matrix, k):
     modified_matrix = jnp.insert(matrix, k, zero_line, axis=0)
     modified_matrix = jnp.insert(modified_matrix, k, zero_col, axis=1)
     return modified_matrix
+
+def add_zeros_line_jaxed(matrix, k):
+    """
+    Add a zero row and a zero column at index k to a given matrix.
+
+    Args:
+    matrix: input matrix (JAX array)
+    k: index where zero row and column should be inserted
+
+    Returns:
+    modified_matrix: matrix with zero row and column added
+    """
+    num_rows, num_cols = matrix.shape
+    
+    # Create the new matrix with an extra row and column
+    new_matrix = jnp.zeros((num_rows + 1, num_cols + 1))
+    
+    # Fill the parts before and after the insertion point
+    new_matrix = new_matrix.at[:k, :k].set(matrix[:k, :k])
+    new_matrix = new_matrix.at[:k, k+1:].set(matrix[:k, k:])
+    new_matrix = new_matrix.at[k+1:, :k].set(matrix[k:, :k])
+    new_matrix = new_matrix.at[k+1:, k+1:].set(matrix[k:, k:])
+    
+    return new_matrix
 
 def zeros_old(obj, pos):
     # Put zeros on the line and column of a matrix "obj" by reference to a position "pos"
@@ -262,7 +311,7 @@ def unit_test_extension_nD():
         [x + options.trunc_size[i] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))]
     )
     print("square ineq: ", [x + options.trunc_size[i] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))])
-    product = prod([a + 1 for a in lazy_tensorisation]) # +1 to account for list starting at zero
+    product = prod() # +1 to account for list starting at zero
     objs = [jnp.arange(0, product**2).reshape(product, product)]
     print("obj initial: ", objs[0])
     temp = extension_nD(objs, old_tensorisation, max_lazy_tensorisation, inequalities, options)

@@ -90,7 +90,7 @@ def reshaping_extend(
         itertools.product(*[range(max_dim) for max_dim in options.tensorisation])
     )
     temp = reduction_nD([H] + [L for L in Ls], max_tensorisation, extended_inequalities)
-    H, Ls = temp[0]
+    H_mod, *Ls_mod = temp[0]
     Hred, *Lsred = projection_nD([H] + [L for L in Ls], None, None, _mask)
     H_mod = _astimearray(H)
     Ls_mod = [_astimearray(L) for L in Ls]
