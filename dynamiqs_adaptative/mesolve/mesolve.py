@@ -133,13 +133,13 @@ def mesolve(
     if options.estimator and options.tensorisation is not None and options.reshaping:
         # a first reshaping to reduce 
         ti0 = time.time()
-        H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = reshaping_init(
+        H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation_mod = reshaping_init(
             tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, options, _mask, solver
         )
         print(time.time() - ti0)
         a = _vmap_mesolve(
             H_mod, jump_ops_mod, rho0_mod, tsave, exp_ops, solver, gradient, options
-            , Hred_mod, Lsred_mod, _mask, estimator, L_reshapings
+            , Hred_mod, Lsred_mod, _mask_mod, estimator, L_reshapings
         )
         while a[1][0]!=tsave[-1]:
             L_reshapings = a[2]
@@ -151,23 +151,18 @@ def mesolve(
             latest_index = latest_non_inf_index(a[0].estimator) # rem : c'est pas le mçeme que find_approx_index ?
             t = tsave[approx_index-1] # -1 since we are redoing the problem
             rho = a[0].states[latest_index]
+            estimator = a[0].estimator[latest_index]
             if L_reshapings[-1]==1:
                 te0 = time.time()
-                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = (
+                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = (
                 reshaping_extend(t, H, jump_ops, rho,
-                tensorisation, options, _mask, solver)
+                    tensorisation_mod, options, solver)
                 )
                 print(time.time() - te0)
-            estimator = (
-                a[0].estimator[latest_index] if options.save_states else a[0].estimator
-            )
-            rho0 = (
-                a[0].states[latest_index] if options.save_states else a[0].states
-            )
             a = _vmap_mesolve(
-                H_mod, jump_ops_mod, rho0_mod, new_tsave
+                H_mod, jump_ops_mod, rho_mod, new_tsave
                 , exp_ops, solver, gradient, options
-                , Hred_mod, Lsred_mod, _mask, estimator, L_reshapings
+                , Hred_mod, Lsred_mod, _mask_mod, estimator, L_reshapings
             )
         return a[0]
     else:

@@ -3,6 +3,7 @@ import itertools
 from .tensorisation_maker import tensorisation_maker
 from .inequalities import generate_rec_ineqs
 from ...options import Options
+import math
 
 def projection_nD(
         objs, original_tensorisation = None, inequalities = None, _mask = None
@@ -220,23 +221,32 @@ def unit_test_reduction_nD():
         return product
     lazy_tensorisation = [7,5]
     tensorisation = tensorisation_maker(lazy_tensorisation)
+    # print(tensorisation)
     inequalities = generate_rec_ineqs(
         [x//2 - 1 for x in lazy_tensorisation]
     )
     print("square ineq: ", [x//2 - 1 for x in lazy_tensorisation])
-    product = prod(lazy_tensorisation)
-    objs = [jnp.arange(1, product**2 + 1).reshape(product, product)]
+    # +1 to account for list starting at zero
+    product = prod([a + 1 for a in lazy_tensorisation])
+    objs = [jnp.arange(0, product**2).reshape(product, product)]
     temp = reduction_nD(objs, tensorisation, inequalities)
     print("reduction: ", temp)    
-    expected_result =   [jnp.array([[  1,   2,   6,   7,  11,  12],
-                                        [ 36,  37,  41,  42,  46,  47],
-                                        [176, 177, 181, 182, 186, 187],
-                                        [211, 212, 216, 217, 221, 222],
-                                        [351, 352, 356, 357, 361, 362],
-                                        [386, 387, 391, 392, 396, 397]])]
+    expected_result =   [jnp.array([[  0,   1,   6,   7,  12,  13],
+                                    [ 48,  49,  54,  55,  60,  61],
+                                    [288, 289, 294, 295, 300, 301],
+                                    [336, 337, 342, 343, 348, 349],
+                                    [576, 577, 582, 583, 588, 589],
+                                    [624, 625, 630, 631, 636, 637]])]
     expected_tensorsiation = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]]
                                     
-    return (jnp.array_equal(temp[0], expected_result) and jnp.array_equal(temp[1], expected_tensorsiation))
+    if (
+        jnp.array_equal(temp[0], expected_result) and 
+        jnp.array_equal(temp[1], expected_tensorsiation)):
+        print("working")
+        return True
+    else:
+        print("not working")
+        return False
 
 def unit_test_extension_nD():
     def prod(lst):
@@ -244,7 +254,7 @@ def unit_test_extension_nD():
         for num in lst:
             product *= num
         return product
-    lazy_tensorisation = [2,5]
+    lazy_tensorisation = [1,4]
     max_lazy_tensorisation = [100,100]
     old_tensorisation = tensorisation_maker(lazy_tensorisation)
     options = Options(trunc_size=[4,2])
@@ -252,14 +262,16 @@ def unit_test_extension_nD():
         [x + options.trunc_size[i] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))]
     )
     print("square ineq: ", [x + options.trunc_size[i] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))])
-    product = prod(lazy_tensorisation)
-    objs = [jnp.arange(1, product**2 + 1).reshape(product, product)]
+    product = prod([a + 1 for a in lazy_tensorisation]) # +1 to account for list starting at zero
+    objs = [jnp.arange(0, product**2).reshape(product, product)]
     print("obj initial: ", objs[0])
     temp = extension_nD(objs, old_tensorisation, max_lazy_tensorisation, inequalities, options)
     print("extension: ", temp)  
     # np.savetxt('rere.csv', np.array(temp[0])[0])
     expected_result = None # I need to find a way to get it in a hard coded way
-    expected_tensorsiation = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [5, 7], [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5], [6, 6], [6, 7]]
-    print("""WARNING checks only tensorisation""")                             
-    return (jnp.array_equal(temp[1], expected_tensorsiation))
+    expected_size = prod([a + 1 + b for a, b in zip(lazy_tensorisation, options.trunc_size)])
+    real_size = math.sqrt(jnp.array(temp[0]).size)
+    expected_tensorsiation = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6]]
+    print("""WARNING checks only tensorisation and extensions size""")                             
+    return (jnp.array_equal(temp[1], expected_tensorsiation) and float(len(expected_tensorsiation))==real_size)
 

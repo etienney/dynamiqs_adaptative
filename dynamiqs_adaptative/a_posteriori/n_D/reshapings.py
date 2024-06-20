@@ -49,19 +49,19 @@ def reshaping_init(
             [None, a//2 - b] for a, b in zip(options.tensorisation, options.trunc_size)
         ]
         options=Options(**tmp_dic) 
-        _mask = mask(H_mod, dict_nD(tensorisation, inequalities))
+        _mask_mod = mask(H_mod, dict_nD(tensorisation, inequalities))
         Hred_mod, rho0_mod, *Lsred_mod = projection_nD(
             [H_mod] + [rho0_mod] + [L for L in jump_ops_mod],
-            None, None, _mask
+            None, None, _mask_mod
         )
         H_mod = _astimearray(H_mod)
         jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
         Hred_mod = _astimearray(Hred_mod)
         Lsred_mod = [_astimearray(L) for L in Lsred_mod]
-        return H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask
+        return H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation
     
 def reshaping_extend(
-        t0, H, Ls, rho, tensorisation, options, _mask, solver
+        t0, H, Ls, rho, tensorisation, options, solver
     ):
     H = H(t0)
     Ls = jnp.stack([L(t0) for L in Ls])
@@ -91,12 +91,12 @@ def reshaping_extend(
     )
     temp = reduction_nD([H] + [L for L in Ls], max_tensorisation, extended_inequalities)
     H, Ls = temp[0]
-    Hred, Lsred = projection_nD([H] + [L for L in Ls], None, None, _mask)
+    Hred, *Lsred = projection_nD([H] + [L for L in Ls], None, None, _mask)
     H_mod = _astimearray(H)
     Ls_mod = [_astimearray(L) for L in Ls]
     Hred_mod = _astimearray(Hred)
     Lsred_mod = [_astimearray(L) for L in Lsred]
-    return H_mod, Ls_mod, Hred_mod, Lsred_mod, rho_mod, _mask
+    return H_mod, Ls_mod, Hred_mod, Lsred_mod, rho_mod, _mask, tensorisation
     return 0
 
 def trace_ineq_states(tensorisation, inequalities, rho):
