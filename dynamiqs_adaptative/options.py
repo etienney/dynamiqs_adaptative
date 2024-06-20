@@ -43,10 +43,11 @@ class Options(eqx.Module):
             f: a function that has len("number of dimensions") inputs and outputs a 
             float.
             Exemple: [param = 2, f = def f(i, j): return i+j] for a 2D tensorisation
-            gives [lambda i, j: i+j < 2]    
+            gives [lambda i, j: i+j <= 2]
             Default inequalities are rectangular ones (rectangular in the dimensions),
             such as [lambda i0, .., in: i0 < param0, etc...]
-        reshaping: (expects estimator to be 'True')
+        reshaping: (expects estimator and save_states to be 'True'. (save_states being 
+            'True' by default))
             if 'True' activates a dynamic reshaping of the simulation's size.
             It expects that you give operators much larger than needed for the
             simulation, since their shape will be dynamically reshaped to the faster fit

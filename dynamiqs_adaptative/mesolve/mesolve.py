@@ -132,25 +132,32 @@ def mesolve(
 
     if options.estimator and options.tensorisation is not None and options.reshaping:
         # a first reshaping to reduce 
+        ti0 = time.time()
         H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = reshaping_init(
             tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, options, _mask, solver
         )
+        print(time.time() - ti0)
         a = _vmap_mesolve(
             H_mod, jump_ops_mod, rho0_mod, tsave, exp_ops, solver, gradient, options
             , Hred_mod, Lsred_mod, _mask, estimator, L_reshapings
         )
         while a[1][0]!=tsave[-1]:
             L_reshapings = a[2]
-            if L_reshapings[-1]==1:
-                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = (
-                reshaping_extend(tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, 
-                options, _mask, solver)
-                )
             old_steps = len(tsave) 
+            approx_index = find_approx_index(tsave, a[1])
             new_steps = old_steps - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
-            new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true time so the algo "clips" to the nearest value
+            new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true (diffrax) time so the algo "clips" to the nearest value
             # because it is stored differently if save_states is on...
-            latest_index = latest_non_inf_index(a[0].estimator)
+            latest_index = latest_non_inf_index(a[0].estimator) # rem : c'est pas le mçeme que find_approx_index ?
+            t = tsave[approx_index-1] # -1 since we are redoing the problem
+            rho = a[0].states[latest_index]
+            if L_reshapings[-1]==1:
+                te0 = time.time()
+                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask = (
+                reshaping_extend(t, H, jump_ops, rho,
+                tensorisation, options, _mask, solver)
+                )
+                print(time.time() - te0)
             estimator = (
                 a[0].estimator[latest_index] if options.save_states else a[0].estimator
             )

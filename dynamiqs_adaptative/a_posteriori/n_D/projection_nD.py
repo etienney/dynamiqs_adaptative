@@ -1,6 +1,7 @@
 import jax.numpy as jnp
 import itertools
-
+from .tensorisation_maker import tensorisation_maker
+from .inequalities import generate_rec_ineqs
 
 def projection_nD(
         objs, original_tensorisation = None, inequalities = None, _mask = None
@@ -55,8 +56,6 @@ def reduction_nD(objs, tensorisation, inequalities):
 def extension_nD(
         objs, old_tensorisation, max_tensorisation, inequalities, options, bypass = False
 ):
-    # rem : il faudrait que la max_tensorisation prennent en compte - trunc_size pour
-    # pouvoir toujours compute l'estimateur
     """
     Extend the objs up to the max_tensorisation by putting zeros cols and rows in spots
     where the inequalities are satisfied and there is no rows and cols.
@@ -81,6 +80,7 @@ def extension_nD(
     indices = [range(max_dim) for max_dim in max_tensorisation]
     lentensor = len(max_tensorisation)
     index = 0
+    tensorisation = []
     for tensor in itertools.product(*indices):
         # Check if the conditions are satisfied
         if all(ineq(*tensor) for ineq in inequalities) or bypass: 
@@ -93,10 +93,11 @@ def extension_nD(
                 for i in range(lenobjs):
                     # Extend the matrix by adding zero rows and columns
                     objs[i] = add_zeros_line(objs[i], index)
-                old_tensorisation.append(tensor)
+            tensorisation.append(list(tensor))
         index += 1
     # sort in the good order the new tensorisation
-    tensorisation = sorted(old_tensorisation, key=lambda x: tuple(reversed(x)))
+    # tensorisation = sorted(old_tensorisation, key=lambda x: list(reversed(x)))
+    # print(old_tensorisation, tensorisation)
     return objs, tensorisation
 
 def dict_nD(original_tensorisation, inequalities):
@@ -208,4 +209,30 @@ def unit_test_projection_nD():
                                     [0, 0, 0, 0, 0, 0]])]
                                     
     return jnp.array_equal(objs, expected_result)
+
+def unit_test_reduction_nD():
+    def prod(lst):
+        product = 1
+        for num in lst:
+            product *= num
+        return product
+    lazy_tensorisation = [7,5]
+    tensorisation = tensorisation_maker(lazy_tensorisation)
+    inequalities = generate_rec_ineqs(
+        [x//2 - 1 for x in lazy_tensorisation]
+    )
+    print("square ineq: ", [x//2 - 1 for x in lazy_tensorisation])
+    product = prod(lazy_tensorisation)
+    objs = [jnp.arange(1, product**2 + 1).reshape(product, product)]
+    temp = reduction_nD(objs, tensorisation, inequalities)
+    print("reduction: ", temp)    
+    expected_result =   [jnp.array([[  1,   2,   6,   7,  11,  12],
+                                        [ 36,  37,  41,  42,  46,  47],
+                                        [176, 177, 181, 182, 186, 187],
+                                        [211, 212, 216, 217, 221, 222],
+                                        [351, 352, 356, 357, 361, 362],
+                                        [386, 387, 391, 392, 396, 397]])]
+    expected_tensorsiation = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]]
+                                    
+    return (jnp.array_equal(temp[0], expected_result) and jnp.array_equal(temp[1], expected_tensorsiation))
 

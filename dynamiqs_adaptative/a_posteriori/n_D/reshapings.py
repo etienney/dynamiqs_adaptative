@@ -61,8 +61,10 @@ def reshaping_init(
         return H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask
     
 def reshaping_extend(
-        tsave, H, Ls, Hred, Lsred, rho, tensorisation, options, _mask, solver
+        t0, H, Ls, rho, tensorisation, options, _mask, solver
     ):
+    H = H(t0)
+    Ls = jnp.stack([L(t0) for L in Ls])
     # extend by trunc_size in all directions
     inequalities = generate_rec_ineqs(
         [a[1] + b for a, b in 
@@ -78,11 +80,12 @@ def reshaping_extend(
     ]
     options = Options(**tmp_dic)
     temp = extension_nD(
-        [rho], tensorisation, options.tensorisation, inequalities, options
+        [rho], tensorisation, options.tensorisation, extended_inequalities, options
     )
-    rho_mod = temp[0]
+    rho_mod = jnp.array(temp[0])[0]
+    print(rho_mod.shape)
     tensorisation = temp[1]
-    _mask = mask(rho, dict_nD(tensorisation, inequalities))
+    _mask = mask(rho_mod, dict_nD(tensorisation, inequalities))
     max_tensorisation = list(
         itertools.product(*[range(max_dim) for max_dim in options.tensorisation])
     )

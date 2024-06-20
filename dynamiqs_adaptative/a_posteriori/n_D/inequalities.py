@@ -11,9 +11,9 @@ def ineq_from_params(param, f):
 
     Exemple: def f(i, j): return i+j
              param = 3
-             ineq_from_params(param, f, lazy_tensorisation) = lambda i, j: i+j < 3
+             ineq_from_params(param, f, lazy_tensorisation) = lambda i, j: i+j <= 3 
     """
-    lambda_func = lambda *args: f(*args) < param
+    lambda_func = lambda *args: f(*args) <= param
     return lambda_func
     # Get the number of arguments the function f takes
     # num_args = len(lazy_tensorisation)
