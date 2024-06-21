@@ -50,8 +50,8 @@ def reduction_nD(objs, tensorisation, inequalities):
     dictio = sorted(dict_nD(tensorisation, inequalities), reverse=True)
     for i in range(len(objs)):
         if i ==0:
-            tensorisation = recursive_delete(tensorisation, dictio, tens=True)
-        new_objs.append(recursive_delete(objs[i], dictio))
+            tensorisation = delete_tensor_elements(tensorisation, dictio)
+        new_objs.append(delete_matrix_elements(objs[i], dictio))
 
     return new_objs, tensorisation
 
@@ -231,6 +231,24 @@ def recursive_delete(obj, positions, tens=False):
         return obj
     # Delete the first position in the list and call recursively for the rest
     return recursive_delete(delete(obj, positions[0], tens), positions[1:], tens)
+
+def delete_tensor_elements(obj, positions):
+    # Sort positions in reverse order to avoid reindexing issues during deletion
+    for pos in sorted(positions, reverse=True):
+        del obj[pos]
+    return obj
+
+def delete_matrix_elements(obj, positions):
+    # Convert positions to a numpy array for indexing
+    positions = jnp.array(positions)
+    
+    # Create masks to keep track of rows and columns to keep
+    mask = jnp.ones(obj.shape[0], dtype=bool)
+    mask = mask.at[positions].set(False)
+    
+    # Apply masks to delete rows and columns
+    obj = obj[mask][:, mask]
+    return obj
 
 def ineq_to_tensorisation(old_inequalities, max_tensorisation):
     """
