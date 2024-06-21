@@ -44,7 +44,10 @@ class DiffraxSolver(BaseSolver):
             fn = lambda t, y, args: self.save(y)  # noqa: ARG005
             subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
             subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
-            saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
+            # to have solver times
+            subsaveat_c = dx.SubSaveAt(steps=True)
+            saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b, subsaveat_c])
+            # saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
 
             if self.gradient is None:
                 adjoint = dx.RecursiveCheckpointAdjoint()
@@ -62,6 +65,10 @@ class DiffraxSolver(BaseSolver):
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 )
+                jax.debug.print("{b} and {c} , {tprev}", b=a, c =state.tprev * (
+                    self.options.estimator_rtol * (self.solver.atol + 
+                    jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
+                ), tprev = state.tprev)
                 # if (prod(self.options.tensorisation)<state.y.rho.shape[0]):
                 #     jax.debug.print("kkkk")
                 # ca le lance 3 fois. Pourquoi ? dieu le sait mais ce n'est pas si grave 
@@ -89,7 +96,9 @@ class DiffraxSolver(BaseSolver):
             )
 
         # === collect and return results
-        save_a, save_b = solution.ys
+        print(solution.ys)
+        save_a, save_b, save_c = solution.ys
+        # save_a, save_b = solution.ys
         if self.options.estimator:
             # save also the estimator
             saved = self.collect_saved(
@@ -130,7 +139,7 @@ class FixedSolver(DiffraxSolver):
             return f'{self.nsteps} steps'
 
     stepsize_controller: dx.AbstractStepSizeController = dx.ConstantStepSize()
-    max_steps: int = 100_000  # TODO: fix hard-coded max_steps
+    max_steps: int = 8192  # TODO: fix hard-coded max_steps
 
     @property
     def dt0(self) -> float:
