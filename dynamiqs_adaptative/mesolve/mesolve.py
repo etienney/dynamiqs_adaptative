@@ -118,7 +118,7 @@ def mesolve(
     estimator = jnp.zeros(1, dtype = cdtype())
 
     # === estimator part
-    Hred, Lsred, _mask, options, inequalities, tensorisation = (
+    options, Hred, Lsred, _mask, inequalities, tensorisation = (
         mesolve_estimator_init(options, H, jump_ops, tsave)
     )
     L_reshapings = [] # to store the reshapings if options.reshaping
@@ -133,7 +133,7 @@ def mesolve(
     if options.estimator and options.tensorisation is not None and options.reshaping:
         # a first reshaping to reduce 
         ti0 = time.time()
-        H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation_mod = reshaping_init(
+        H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation_mod, options = reshaping_init(
             tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, options, _mask, solver
         )
         print(time.time() - ti0)
@@ -156,7 +156,7 @@ def mesolve(
                 te0 = time.time()
                 H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = (
                 reshaping_extend(t, H, jump_ops, rho,
-                    tensorisation_mod, options, solver)
+                    tensorisation_mod, options)
                 )
                 print(time.time() - te0)
             a = _vmap_mesolve(

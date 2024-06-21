@@ -51,7 +51,7 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
                 # tansform the trunctature into inegalities (+1 to account for the fact  
                 # that matrix index start at 0)
                 inequalities = generate_rec_ineqs(
-                    [a - b + 1 for a, b in zip(lazy_tensorisation, trunc_size)]
+                    [(a + 1) - b for a, b in zip(lazy_tensorisation, trunc_size)]
                 )
                 tensorisation = tensorisation_maker(lazy_tensorisation)
                 _mask = mask(H0, dict_nD(tensorisation, inequalities))
@@ -67,8 +67,8 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
                 Lsred = [_astimearray(L) for L in Lsred]
     else:
         # setup empty values
-        Hred, Lsred, _mask, inequalities, tensorisation = None, None, None, None, None
-    return Hred, Lsred, _mask, options, inequalities, tensorisation
+        options, Hred, Lsred, _mask, inequalities, tensorisation = options, H, jump_ops, 0, 0, 0
+    return options, Hred, Lsred, _mask, inequalities, tensorisation
 
 def mesolve_warning(L):
     save_b,  estimator_rtol, atol , rtol = L

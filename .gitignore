@@ -37,3 +37,4 @@ docs/figs_docs/**
 
 # temporary directiry
 .tmp/**
+prof.lprof

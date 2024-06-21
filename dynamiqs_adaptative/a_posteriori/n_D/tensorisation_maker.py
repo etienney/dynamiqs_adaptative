@@ -4,9 +4,9 @@ from ..utils.utils import tuple_to_list
 def tensorisation_maker(lazy_tensorisation):
     # from a lazy_tensorisation for a n_1*..*n_m tensorisation we obtain a more detailed 
     # tensorisation, useful to make more complex truncature of the space
-    # as an exemple (1, 2) should ouput ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2)).
+    # as an exemple (2, 3) should ouput ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2)).
 
-    tensorisation = tuple_to_list(tuple(product(*[range(dim + 1) for dim in lazy_tensorisation]))) # stupide de tuple->list. a changer demain
+    tensorisation = tuple_to_list(tuple(product(*[range(dim) for dim in lazy_tensorisation]))) # stupide de tuple->list. a changer demain
     
     return tensorisation
 
@@ -17,18 +17,18 @@ def unit_test_tensorisation_maker():
         else:
             return False
     # Test for a 2D tensor (2, 3)
-    input_tensor = (1, 2)
+    input_tensor = (2, 3)
     expected_output = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
     if assert_equal(tensorisation_maker(input_tensor), expected_output): return False
 
     # user not expected to do this one though
     # Test for a 1D tensor (4,)
-    input_tensor = (3,)
+    input_tensor = (4,)
     expected_output = [(0,), (1,), (2,), (3,)]
     if assert_equal(tensorisation_maker(input_tensor), expected_output): return False
 
     # Test for a 3D tensor (2, 2, 2)
-    input_tensor = (1, 1, 1)
+    input_tensor = (2, 2, 2)
     expected_output = [
         (0, 0, 0), (0, 0, 1), (0, 1, 0), (0, 1, 1),
         (1, 0, 0), (1, 0, 1), (1, 1, 0), (1, 1, 1)

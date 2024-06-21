@@ -78,7 +78,7 @@ def extension_nD(
     # old_tensorisation = ineq_to_tensorisation(old_inequalities, max_tensorisation)
     lenobjs = len(objs)
     # Iterate over all possible indices within max_tensorisation 
-    # (recreates a lazy_tensorisation)
+    # (recreates a tensorsiation_maker(lazy_tensorisation))
     indices = [range(max_dim) for max_dim in max_tensorisation]
     lentensor = len(max_tensorisation)
     index = 0
@@ -96,6 +96,7 @@ def extension_nD(
                 for i in range(lenobjs):
                     # Extend the matrix by adding zero rows and columns
                     new_objs[i] = add_zeros_line(new_objs[i], index)
+                    # print(index)
             tensorisation.append(list(tensor))
         index += 1
     # sort in the good order the new tensorisation
@@ -103,17 +104,17 @@ def extension_nD(
     # print(old_tensorisation, tensorisation)
     return new_objs, tensorisation
 
-def dict_nD(original_tensorisation, inequalities):
+def dict_nD(tensorisation, inequalities):
     # dictio will make us able to repertoriate the indices to suppress
     dictio=[]
     # i compte l'indice sur lequel on se trouve pour l'encodage en machine des positions
     # de la matrice, par exemple (i=0 pour (0,0)) et (i=2 pour (1,0)) dans l'exemple
     # precedent
-    for i in range(len(original_tensorisation)):
+    for i in range(len(tensorisation)):
         # we check if some inequalities aren't verified, if so we will add the line
         # in dictio for it to be cut off later
         for inegality in inequalities:
-            if not inegality(*tuple(original_tensorisation[i])):
+            if not inegality(*tuple(tensorisation[i])):
                 dictio.append(i)
                 break # to avoid appending the same line multiple times
 
@@ -272,21 +273,27 @@ def unit_test_reduction_nD():
     tensorisation = tensorisation_maker(lazy_tensorisation)
     # print(tensorisation)
     inequalities = generate_rec_ineqs(
-        [x//2 - 1 for x in lazy_tensorisation]
-    )
-    print("square ineq: ", [x//2 - 1 for x in lazy_tensorisation])
-    # +1 to account for list starting at zero
-    product = prod([a + 1 for a in lazy_tensorisation])
-    objs = [jnp.arange(0, product**2).reshape(product, product)]
+        [(x+1)//2 - 1 for x in lazy_tensorisation]
+    ) # /!\ +1 since lazy_tensorisation start counting at 0
+    print("square ineq: ", [(x+1)//2 - 1 for x in lazy_tensorisation])
+    product = prod([a for a in lazy_tensorisation])
+    objs = [jnp.arange(0, product**(2)).reshape(product, product)]
+    print("objs :", objs[0])
     temp = reduction_nD(objs, tensorisation, inequalities)
     print("reduction: ", temp)    
-    expected_result =   [jnp.array([[  0,   1,   6,   7,  12,  13],
-                                    [ 48,  49,  54,  55,  60,  61],
-                                    [288, 289, 294, 295, 300, 301],
-                                    [336, 337, 342, 343, 348, 349],
-                                    [576, 577, 582, 583, 588, 589],
-                                    [624, 625, 630, 631, 636, 637]])]
-    expected_tensorsiation = [[0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1]]
+    expected_result =   [jnp.array([[  0,   1,   2,   5,   6,   7,  10,  11,  12,  15,  16,  17],
+                                    [ 35,  36,  37,  40,  41,  42,  45,  46,  47,  50,  51,  52],
+                                    [ 70,  71,  72,  75,  76,  77,  80,  81,  82,  85,  86,  87],
+                                    [175, 176, 177, 180, 181, 182, 185, 186, 187, 190, 191, 192],
+                                    [210, 211, 212, 215, 216, 217, 220, 221, 222, 225, 226, 227],
+                                    [245, 246, 247, 250, 251, 252, 255, 256, 257, 260, 261, 262],
+                                    [350, 351, 352, 355, 356, 357, 360, 361, 362, 365, 366, 367],
+                                    [385, 386, 387, 390, 391, 392, 395, 396, 397, 400, 401, 402],
+                                    [420, 421, 422, 425, 426, 427, 430, 431, 432, 435, 436, 437],
+                                    [525, 526, 527, 530, 531, 532, 535, 536, 537, 540, 541, 542],
+                                    [560, 561, 562, 565, 566, 567, 570, 571, 572, 575, 576, 577],
+                                    [595, 596, 597, 600, 601, 602, 605, 606, 607, 610, 611, 612]])]
+    expected_tensorsiation = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2]]
                                     
     if (
         jnp.array_equal(temp[0], expected_result) and 
@@ -303,24 +310,23 @@ def unit_test_extension_nD():
         for num in lst:
             product *= num
         return product
-    lazy_tensorisation = [1,4]
+    lazy_tensorisation = [2,5]
     max_lazy_tensorisation = [100,100]
     old_tensorisation = tensorisation_maker(lazy_tensorisation)
     options = Options(trunc_size=[4,2])
     inequalities = generate_rec_ineqs(
-        [x + options.trunc_size[i] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))]
-    )
-    print("square ineq: ", [x + options.trunc_size[i] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))])
-    product = prod() # +1 to account for list starting at zero
+        [x + 1 + options.trunc_size[i] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))]
+    )# /!\ +1 since lazy_tensorisation start counting at 0
+    print("square ineq: ", [x + 1 + options.trunc_size[i] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))])
+    product = prod([a for a in lazy_tensorisation])
     objs = [jnp.arange(0, product**2).reshape(product, product)]
     print("obj initial: ", objs[0])
     temp = extension_nD(objs, old_tensorisation, max_lazy_tensorisation, inequalities, options)
     print("extension: ", temp)  
     # np.savetxt('rere.csv', np.array(temp[0])[0])
     expected_result = None # I need to find a way to get it in a hard coded way
-    expected_size = prod([a + 1 + b for a, b in zip(lazy_tensorisation, options.trunc_size)])
     real_size = math.sqrt(jnp.array(temp[0]).size)
-    expected_tensorsiation = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6]]
+    expected_tensorsiation = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [0, 8], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [1, 6], [1, 7], [1, 8], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [2, 6], [2, 7], [2, 8], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5], [3, 6], [3, 7], [3, 8], [4, 0], [4, 1], [4, 2], [4, 3], [4, 4], [4, 5], [4, 6], [4, 7], [4, 8], [5, 0], [5, 1], [5, 2], [5, 3], [5, 4], [5, 5], [5, 6], [5, 7], [5, 8], [6, 0], [6, 1], [6, 2], [6, 3], [6, 4], [6, 5], [6, 6], [6, 7], [6, 8], [7, 0], [7, 1], [7, 2], [7, 3], [7, 4], [7, 5], [7, 6], [7, 7], [7, 8]]
     print("""WARNING checks only tensorisation and extensions size""")                             
     return (jnp.array_equal(temp[1], expected_tensorsiation) and float(len(expected_tensorsiation))==real_size)
 

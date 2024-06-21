@@ -20,9 +20,9 @@ def reshaping_init(
     Also we just do an absolute tolerance, relative tolerance would need to compute
     a norm which is expensive."""
     inequalities = generate_rec_ineqs(
-            [a//2 for a, b in 
+            [(a+1)//2 for a, b in 
             zip(options.tensorisation, options.trunc_size)]
-    )
+    )# /!\ +1 since lazy_tensorisation starts counting at 0
     if (
         trace_ineq_states(tensorisation, inequalities, rho0) > 1/len(tsave) * 
         (solver.atol)
@@ -30,7 +30,12 @@ def reshaping_init(
         print("""Your initial state is already populated in the high Fock states
               dimensions. Computation may be slower.
               """)
-        return H, jump_ops, Hred, Lsred, rho0_mod, _mask
+        tmp_dic=options.__dict__
+        tmp_dic['inequalities'] = [
+            [None, a+1] for a, b in zip(options.tensorisation, options.trunc_size)
+        ]# /!\ +1 since lazy_tensorisation starts counting at 0
+        options=Options(**tmp_dic)
+        return H, jump_ops, Hred, Lsred, rho0_mod, _mask, tensorisation, options
     else:
         temp = reduction_nD(
             [H(tsave[-1])] + [rho0] + [L(tsave[-1]) for L in jump_ops],
@@ -38,16 +43,15 @@ def reshaping_init(
         )
         H_mod, rho0_mod, *jump_ops_mod = temp[0]
         tensorisation = temp[1]
-        inequalities = generate_rec_ineqs(
-            [a//2 - b for a, b in 
-            zip(options.tensorisation, options.trunc_size)]
-        )
-        print(inequalities)
         # we set our rectangular params in options
+        inequalities = generate_rec_ineqs(
+            [(a+1)//2 - b for a, b in 
+            zip(options.tensorisation, options.trunc_size)]
+    )
         tmp_dic=options.__dict__
         tmp_dic['inequalities'] = [
-            [None, a//2 - b] for a, b in zip(options.tensorisation, options.trunc_size)
-        ]
+            [None, (a+1)//2 - b] for a, b in zip(options.tensorisation, options.trunc_size)
+        ]# /!\ +1 since lazy_tensorisation starts counting at 0
         options=Options(**tmp_dic) 
         _mask_mod = mask(H_mod, dict_nD(tensorisation, inequalities))
         Hred_mod, rho0_mod, *Lsred_mod = projection_nD(
@@ -58,10 +62,10 @@ def reshaping_init(
         jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
         Hred_mod = _astimearray(Hred_mod)
         Lsred_mod = [_astimearray(L) for L in Lsred_mod]
-        return H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation
+        return H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation, options
     
 def reshaping_extend(
-        t0, H, Ls, rho, tensorisation, options, solver
+        t0, H, Ls, rho, tensorisation, options
     ):
     H = H(t0)
     Ls = jnp.stack([L(t0) for L in Ls])
@@ -83,15 +87,20 @@ def reshaping_extend(
         [rho], tensorisation, options.tensorisation, extended_inequalities, options
     )
     rho_mod = jnp.array(temp[0])[0]
-    print(rho_mod.shape)
-    tensorisation = temp[1]
+    # print(rho_mod.shape)
     _mask = mask(rho_mod, dict_nD(tensorisation, inequalities))
-    max_tensorisation = list(
-        itertools.product(*[range(max_dim) for max_dim in options.tensorisation])
-    )
-    temp = reduction_nD([H] + [L for L in Ls], max_tensorisation, extended_inequalities)
+    tensorisation = temp[1]
+    # print(len(tensorisation), tensorisation)
+    # print(rho, rho_mod)
+
+    # print(jnp.array(H).shape)
+    temp = reduction_nD([H] + [L for L in Ls], tensorisation_maker(options.tensorisation), extended_inequalities)
     H_mod, *Ls_mod = temp[0]
-    Hred, *Lsred = projection_nD([H] + [L for L in Ls], None, None, _mask)
+    tensorisation = temp[1]
+    # print(len(tensorisation), tensorisation)
+    # print(H_mod, Ls_mod)
+    # print(jnp.array(H_mod).shape, jnp.array(Ls_mod[1]).shape)
+    Hred, *Lsred = projection_nD([H_mod] + [L for L in Ls_mod], None, None, _mask)
     H_mod = _astimearray(H)
     Ls_mod = [_astimearray(L) for L in Ls]
     Hred_mod = _astimearray(Hred)
