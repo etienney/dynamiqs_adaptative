@@ -17,6 +17,7 @@ from ..options import Options
 
 from .abstract_solver import State
 from ..a_posteriori.utils.mesolve_fcts import mesolve_warning
+from ..a_posteriori.utils.utils import prod
 
 from .._utils import cdtype
 
@@ -55,12 +56,14 @@ class DiffraxSolver(BaseSolver):
             # stop the diffrax integration if condition is reached (we will then restart
             # a diffrax integration with a reshaping of H, L, rho)
             def condition(state, **kwargs):
-                jax.debug.print("error verif: {a}", a = self.estimator[0] + state.y.err)
+                jax.debug.print("error verif: \ntotal: {a} \nself: {b} \ndu state: {c}", a = self.estimator[0] + state.y.err, b =  self.estimator[0], c = state.y.err)
                 # jax.debug.print("rho: {a}", a=state.y.rho)
-                a = self.estimator[0] + (state.y.err[0]).real >= state.tprev * (
+                a = (state.y.err[0]).real >= state.tprev * (# /!\ on a l'estimator ou la version divisée par dt dans state ?
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 )
+                # if (prod(self.options.tensorisation)<state.y.rho.shape[0]):
+                #     jax.debug.print("kkkk")
                 # ca le lance 3 fois. Pourquoi ? dieu le sait mais ce n'est pas si grave 
                 jax.lax.cond(a, lambda: self.L_reshapings.append(1), lambda: None) 
                 return a
@@ -83,7 +86,7 @@ class DiffraxSolver(BaseSolver):
                 stepsize_controller=self.stepsize_controller,
                 adjoint=adjoint,
                 max_steps=self.max_steps,
-                )
+            )
 
         # === collect and return results
         save_a, save_b = solution.ys

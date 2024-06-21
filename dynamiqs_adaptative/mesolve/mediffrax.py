@@ -79,6 +79,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             derr = estimator_derivate_opti_nD(
                 drho, GH, GLs, rho
             )
+            jax.debug.print("err instantanée de diffrax: {derr}", derr=derr)
             t4 = time.time()
             # jax.debug.print("{z}, {e}", z =t3-t2, e=t4-t3)
             return State(drho, derr)
