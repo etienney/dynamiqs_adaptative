@@ -89,7 +89,7 @@ def reshaping_extend(
     rho_mod = jnp.array(temp[0])[0]
     tensorisation = temp[1]
     _mask = mask(rho_mod, dict_nD(tensorisation, inequalities))
-    print("taille: ", len(tensorisation), "tensorisation[-1]", tensorisation[-1])
+    print("taille du reshaping:", len(tensorisation), "tensorisation[-1]:", tensorisation[-1])
     # print(rho, rho_mod)
 
     # print(jnp.array(H).shape)

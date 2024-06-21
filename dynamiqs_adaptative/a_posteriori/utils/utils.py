@@ -34,3 +34,11 @@ def new_ts(t0, ts):
     new_ts = jnp.zeros(ts[-1] - final_state, jnp.float32)
     new_ts=new_ts.at[:].set(ts[final_state:])
     return new_ts
+
+def prod(lst):
+    # make the product of the number in a list
+    product = 1
+    for num in lst:
+        product *= num
+    return product
+

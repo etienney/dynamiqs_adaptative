@@ -56,8 +56,8 @@ class DiffraxSolver(BaseSolver):
             # stop the diffrax integration if condition is reached (we will then restart
             # a diffrax integration with a reshaping of H, L, rho)
             def condition(state, **kwargs):
-                jax.debug.print("error verif: \ntotal: {a} \nself: {b} \ndu state: {c}", a = self.estimator[0] + state.y.err, b =  self.estimator[0], c = state.y.err)
-                # jax.debug.print("rho: {a}", a=state.y.rho)
+                # jax.debug.print("error verif: \ntotal: {a} \nself: {b} \ndu state: {c}", a = self.estimator[0] + state.y.err, b =  self.estimator[0], c = state.y.err)
+                jax.debug.print("error verif: {a}", a=state.y.err)
                 a = (state.y.err[0]).real >= state.tprev * (# /!\ on a l'estimator ou la version divisée par dt dans state ?
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)

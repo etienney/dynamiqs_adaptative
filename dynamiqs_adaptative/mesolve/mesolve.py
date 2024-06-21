@@ -149,16 +149,17 @@ def mesolve(
             new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true (diffrax) time so the algo "clips" to the nearest value
             # because it is stored differently if save_states is on...
             latest_index = latest_non_inf_index(a[0].estimator) # rem : c'est pas le mçeme que find_approx_index ?
-            t = tsave[approx_index-1] # -1 since we are redoing the problem
+            t = tsave[approx_index] # -1 since we are redoing the problem
             rho = a[0].states[latest_index]
             estimator = a[0].estimator[latest_index]
+            print(a[0].estimator)
             if L_reshapings[-1]==1:
                 te0 = time.time()
                 H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = (
                 reshaping_extend(t, H, jump_ops, rho,
                     tensorisation_mod, options)
                 )
-                print(time.time() - te0)
+                print("temps du reshaping: ", time.time() - te0)
             a = _vmap_mesolve(
                 H_mod, jump_ops_mod, rho_mod, new_tsave
                 , exp_ops, solver, gradient, options

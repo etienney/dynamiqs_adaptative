@@ -4,6 +4,7 @@ from .tensorisation_maker import tensorisation_maker
 from .inequalities import generate_rec_ineqs
 from ...options import Options
 import math
+from ..utils.utils import prod
 
 def projection_nD(
         objs, original_tensorisation = None, inequalities = None, _mask = None
@@ -282,11 +283,6 @@ def unit_test_projection_nD():
     return jnp.array_equal(objs, expected_result)
 
 def unit_test_reduction_nD():
-    def prod(lst):
-        product = 1
-        for num in lst:
-            product *= num
-        return product
     lazy_tensorisation = [7,5]
     tensorisation = tensorisation_maker(lazy_tensorisation)
     # print(tensorisation)
@@ -323,11 +319,6 @@ def unit_test_reduction_nD():
         return False
 
 def unit_test_extension_nD():
-    def prod(lst):
-        product = 1
-        for num in lst:
-            product *= num
-        return product
     lazy_tensorisation = [2,5]
     max_lazy_tensorisation = [100,100]
     old_tensorisation = tensorisation_maker(lazy_tensorisation)
