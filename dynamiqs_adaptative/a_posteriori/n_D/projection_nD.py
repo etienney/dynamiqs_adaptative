@@ -88,7 +88,7 @@ def extension_nD(
         # Check if the conditions are satisfied
         if all(ineq(*tensor) for ineq in inequalities) or bypass: 
             for i in range(lentensor):
-                if max_tensorisation[i]==(tensor[i] + options.trunc_size[i]):
+                if max_tensorisation[i]<(tensor[i] + options.trunc_size[i]):
                     # we reach the max size of the matrices given as inputs
                     print('WARNING the size of the objects you gave is too small to'
                            'warranty a solution accurate up to solver precision')

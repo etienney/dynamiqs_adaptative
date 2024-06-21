@@ -87,10 +87,10 @@ def reshaping_extend(
         [rho], tensorisation, options.tensorisation, extended_inequalities, options
     )
     rho_mod = jnp.array(temp[0])[0]
-    # print(rho_mod.shape)
-    _mask = mask(rho_mod, dict_nD(tensorisation, inequalities))
+    print(rho_mod.shape)
     tensorisation = temp[1]
-    # print(len(tensorisation), tensorisation)
+    _mask = mask(rho_mod, dict_nD(tensorisation, inequalities))
+    print(len(tensorisation), tensorisation)
     # print(rho, rho_mod)
 
     # print(jnp.array(H).shape)
@@ -99,12 +99,12 @@ def reshaping_extend(
     tensorisation = temp[1]
     # print(len(tensorisation), tensorisation)
     # print(H_mod, Ls_mod)
-    # print(jnp.array(H_mod).shape, jnp.array(Ls_mod[1]).shape)
-    Hred, *Lsred = projection_nD([H_mod] + [L for L in Ls_mod], None, None, _mask)
-    H_mod = _astimearray(H)
-    Ls_mod = [_astimearray(L) for L in Ls]
-    Hred_mod = _astimearray(Hred)
-    Lsred_mod = [_astimearray(L) for L in Lsred]
+    print(jnp.array(H_mod).shape, jnp.array(Ls_mod[0]).shape)
+    Hred_mod, *Lsred_mod = projection_nD([H_mod] + [L for L in Ls_mod], None, None, _mask)
+    H_mod = _astimearray(H_mod)
+    Ls_mod = [_astimearray(L) for L in Ls_mod]
+    Hred_mod = _astimearray(Hred_mod)
+    Lsred_mod = [_astimearray(L) for L in Lsred_mod]
     return H_mod, Ls_mod, Hred_mod, Lsred_mod, rho_mod, _mask, tensorisation
     return 0
 
