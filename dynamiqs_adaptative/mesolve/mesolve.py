@@ -133,37 +133,44 @@ def mesolve(
     if options.estimator and options.tensorisation is not None and options.reshaping:
         # a first reshaping to reduce 
         ti0 = time.time()
-        H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation_mod, options = reshaping_init(
-            tsave, H, jump_ops, Hred, Lsred, rho0, tensorisation, options, _mask, solver
+        options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation_mod = reshaping_init(
+            options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, solver.atol
         )
         print(time.time() - ti0)
         a = _vmap_mesolve(
             H_mod, jump_ops_mod, rho0_mod, tsave, exp_ops, solver, gradient, options
             , Hred_mod, Lsred_mod, _mask_mod, estimator, L_reshapings
         )
-        while a[1][0]!=tsave[-1]:
-            L_reshapings = a[2]
-            old_steps = len(tsave) 
-            approx_index = find_approx_index(tsave, a[1])
-            new_steps = old_steps - find_approx_index(tsave, a[1]) + 1 # +1 for the case under
-            new_tsave = jnp.linspace(a[1][0], tsave[-1], new_steps) # problem: it's not true (diffrax) time so the algo "clips" to the nearest value
+        old_steps = len(tsave) 
+        true_time = a[1][jnp.isfinite(a[1])]
+        while true_time[-1]!=tsave[-1]:
+            true_time = a[1][jnp.isfinite(a[1])]
+            true_steps = len(true_time)
+            rho_mod =  a[2].rho[true_steps - 2] # -1 because we want rho and estimator values at true_time[-1] and len adds one
+            true_estimator = a[2].err[true_steps - 2]
+            print("estimator:", true_estimator,"time: ", true_time)
+            print("rho: ", rho_mod)
+            L_reshapings = a[-1]
+            approx_index = find_approx_index(tsave, true_time[-2]) # enlever le abs ?
+            new_steps = old_steps - find_approx_index(tsave, true_time[-2]) + 1 # +1 for the case under
+            new_tsave = jnp.linspace(true_time[-2], tsave[-1], new_steps) # problem: it's not true (diffrax) time so the algo "clips" to the nearest value
             # because it is stored differently if save_states is on...
-            latest_index = latest_non_inf_index(a[0].estimator) # rem : c'est pas le mçeme que find_approx_index ?
-            t = tsave[approx_index] # -1 since we are redoing the problem
-            rho = a[0].states[latest_index]
-            estimator = a[0].estimator[latest_index]
+            # latest_index = latest_non_inf_index(a[0].estimator) # rem : c'est pas le mçeme que find_approx_index ?
+            # t = tsave[approx_index] # -1 since we are redoing the problem
+            # rho = a[0].states[latest_index]
+            # estimator = a[0].estimator[latest_index-2]
             print(a[0].estimator)
-            if L_reshapings[-1]==1:
+            if L_reshapings[-1]==1 and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
                 te0 = time.time()
-                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = (
-                reshaping_extend(t, H, jump_ops, rho,
-                    tensorisation_mod, options)
+                options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = (
+                reshaping_extend(options, H, jump_ops, rho_mod,
+                    tensorisation_mod, true_time)
                 )
                 print("temps du reshaping: ", time.time() - te0)
             a = _vmap_mesolve(
                 H_mod, jump_ops_mod, rho_mod, new_tsave
                 , exp_ops, solver, gradient, options
-                , Hred_mod, Lsred_mod, _mask_mod, estimator, L_reshapings
+                , Hred_mod, Lsred_mod, _mask_mod, true_estimator, L_reshapings
             )
         return a[0]
     else:

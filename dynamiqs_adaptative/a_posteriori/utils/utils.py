@@ -42,3 +42,14 @@ def prod(lst):
         product *= num
     return product
 
+def find_non_infs_matrices(matrices):
+    # output matrices not full of infs in a list of matrices ending with only matrices 
+    # full of infs
+    filtered_matrices = []
+    
+    for matrix in matrices:
+        if not jnp.isfinite(matrix).all():
+            break  # Stop iteration as soon as we encounter a matrix with 'inf' values
+        filtered_matrices.append(matrix)
+    
+    return filtered_matrices

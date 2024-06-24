@@ -96,8 +96,9 @@ class DiffraxSolver(BaseSolver):
             )
 
         # === collect and return results
-        print(solution.ys)
+        # print(solution.ys)
         save_a, save_b, save_c = solution.ys
+
         # save_a, save_b = solution.ys
         if self.options.estimator:
             # save also the estimator
@@ -117,8 +118,10 @@ class DiffraxSolver(BaseSolver):
             return self.result(saved, infos=self.infos(solution.stats))
         else:
             # give additional infos needed for the reshaping
+            # true_time = solution.ts[jnp.isfinite(solution.ts[-1])]
+            # print(true_time, true_time[-1])
             return [self.result(saved, infos=self.infos(solution.stats)), 
-                solution.ts[-1], self.L_reshapings
+                solution.ts[-1], save_c, self.L_reshapings
             ]
 
     @abstractmethod

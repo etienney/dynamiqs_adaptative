@@ -17,6 +17,11 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
     # to init the arguments necessary for the estimator and the reshaping
 
     if options.estimator:
+        t0 = tsave[0]
+        H0 = H(t0)
+        L0 = jnp.stack([L(t0) for L in jump_ops])
+        lazy_tensorisation = options.tensorisation
+        tmp_dic=options.__dict__
         if options.trunc_size is None:
             if (
                 type(H)!=ConstantTimeArray or 
@@ -31,43 +36,34 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
             if options.tensorisation is None:
                 t0 = tsave[0]
                 # Find the truncature needed to compute the estimator
-                trunc_size = degree_guesser_list(
-                    H(t0), jnp.stack([L(t0) for L in jump_ops])
-                )
+                trunc_size = degree_guesser_list(H0, L0)
                 # for the 2 see [the article]
                 trunc_size = 2 * trunc_size
-                tmp_dic=options.__dict__
                 tmp_dic['trunc_size']=int(trunc_size)
-                options=Options(**tmp_dic) 
             else:
-                t0 = tsave[0]
-                H0 = H(t0)
-                L0 = jnp.stack([L(t0) for L in jump_ops])
-                lazy_tensorisation = options.tensorisation
                 # Find the truncature needed to compute the estimator
                 trunc_size = degree_guesser_nD_list(H0, L0, lazy_tensorisation)
                 # for the 2 see [the article]
-                trunc_size = [2 * x for x in trunc_size]
-                # tansform the trunctature into inegalities (+1 to account for the fact  
-                # that matrix index start at 0)
-                inequalities = generate_rec_ineqs(
-                    [(a + 1) - b for a, b in zip(lazy_tensorisation, trunc_size)]
-                )
-                tensorisation = tensorisation_maker(lazy_tensorisation)
-                _mask = mask(H0, dict_nD(tensorisation, inequalities))
-                Hred, *Lsred = projection_nD(
-                   [H0] + list(L0), tensorisation, inequalities, _mask
-                )
                 # We setup the results in options
-                tmp_dic=options.__dict__
                 tmp_dic['trunc_size'] = [x.item() for x in jnp.array(trunc_size)]
-                options=Options(**tmp_dic) 
-                # reconvert to Timearray args
-                Hred = _astimearray(Hred)
-                Lsred = [_astimearray(L) for L in Lsred]
+        inequalities = generate_rec_ineqs(
+            [(a - 1) - b for a, b in zip(lazy_tensorisation, options.trunc_size)]
+        )# -1 since list indexing strats at 0
+        tmp_dic['inequalities'] = [
+        [None, (a - 1) - b] for a, b in zip(lazy_tensorisation, options.trunc_size)
+        ]
+        tensorisation = tensorisation_maker(lazy_tensorisation)
+        _mask = mask(H0, dict_nD(tensorisation, inequalities))
+        Hred, *Lsred = projection_nD(
+            [H0] + list(L0), tensorisation, inequalities, _mask
+        )
+        options = Options(**tmp_dic)
+        # reconvert to Timearray args
+        Hred = _astimearray(Hred)
+        Lsred = [_astimearray(L) for L in Lsred]
     else:
         # setup empty values
-        options, Hred, Lsred, _mask, inequalities, tensorisation = options, H, jump_ops, 0, 0, 0
+        options, Hred, Lsred, _mask, inequalities, tensorisation = options, None, None, 0, 0, 0
     return options, Hred, Lsred, _mask, inequalities, tensorisation
 
 def mesolve_warning(L):
