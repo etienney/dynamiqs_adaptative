@@ -1,0 +1,17 @@
+\contentsline {section}{\numberline {1}Introduction}{1}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Structure of the semigroup}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Galerkin approximation}{2}{subsection.1.2}%
+\contentsline {section}{\numberline {2}\textit {A posteriori} error estimates for Lindblad's equation}{2}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Main ideas and estimates}{2}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Hamiltonian error}{3}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Dissipators' error}{3}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Examples}{4}{subsection.2.4}%
+\contentsline {subsubsection}{\numberline {2.4.1}Bosonic mode}{4}{subsubsection.2.4.1}%
+\contentsline {paragraph}{Some trivial cases}{4}{section*.2}%
+\contentsline {paragraph}{Hamiltonian in $u(t)(a+a^\dag )$}{4}{section*.3}%
+\contentsline {paragraph}{Dissipator in $L=a^2- \alpha ^2 \operatorname {Id}$}{4}{section*.4}%
+\contentsline {paragraph}{General polynomials}{4}{section*.5}%
+\contentsline {paragraph}{Numerical simulations}{4}{section*.6}%
+\contentsline {subsubsection}{\numberline {2.4.2}Oscillation revivals}{4}{subsubsection.2.4.2}%
+\contentsline {section}{\numberline {3}Conclusion}{5}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Acknowledgements}{5}{subsection.3.1}%

@@ -1,0 +1,157 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.3 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{nyt/global//global/global/global}
+    \entry{gondolfEnergyPreservingEvolutions2023}{misc}{}{}
+      \name{author}{3}{}{%
+        {{hash=d472b57ec78409f15e70f3a359b7fd1a}{%
+           family={Gondolf},
+           familyi={G\bibinitperiod},
+           given={Paul},
+           giveni={P\bibinitperiod}}}%
+        {{hash=f088cabfa31fd212cf2e2e54a9235672}{%
+           family={Möbus},
+           familyi={M\bibinitperiod},
+           given={Tim},
+           giveni={T\bibinitperiod}}}%
+        {{hash=45775495ccf3fe82fc6a205ccba35bec}{%
+           family={Rouzé},
+           familyi={R\bibinitperiod},
+           given={Cambyse},
+           giveni={C\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {arXiv}%
+      }
+      \strng{namehash}{81ffa910b671661cdc188437bfb8abff}
+      \strng{fullhash}{81ffa910b671661cdc188437bfb8abff}
+      \strng{fullhashraw}{81ffa910b671661cdc188437bfb8abff}
+      \strng{bibnamehash}{81ffa910b671661cdc188437bfb8abff}
+      \strng{authorbibnamehash}{81ffa910b671661cdc188437bfb8abff}
+      \strng{authornamehash}{81ffa910b671661cdc188437bfb8abff}
+      \strng{authorfullhash}{81ffa910b671661cdc188437bfb8abff}
+      \strng{authorfullhashraw}{81ffa910b671661cdc188437bfb8abff}
+      \field{labelalpha}{GMR23}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{abstract}{The exponential convergence to invariant subspaces of quantum Markov semigroups plays a crucial role in quantum information theory. One such example is in bosonic error correction schemes, where dissipation is used to drive states back to the code-space -- an invariant subspace protected against certain types of errors. In this paper, we investigate perturbations of quantum dynamical semigroups that operate on continuous variable (CV) systems and admit an invariant subspace. First, we prove a generation theorem for quantum Markov semigroups on CV systems under the physical assumptions that (i) the generator has GKSL form with corresponding jump operators defined as polynomials of annihilation and creation operators; and (ii) the (possibly unbounded) generator increases all moments in a controlled manner. Additionally, we show that the level sets of operators with bounded first moments are admissible subspaces of the evolution, providing the foundations for a perturbative analysis. Our results also extend to time-dependent semigroups. We apply our general framework to two settings of interest in continuous variables quantum information processing. First, we provide a new scheme for deriving continuity bounds on the energy-constrained capacities of Markovian perturbations of Quantum dynamical semigroups. Second, we provide a quantitative analysis of the dampening of continuous-time evolutions generating a universal gate set for CAT-qubits outside their code-space.}
+      \field{eprintclass}{math-ph, physics:quant-ph}
+      \field{eprinttype}{arxiv}
+      \field{month}{7}
+      \field{number}{arXiv:2307.13801}
+      \field{title}{Energy preserving evolutions over {{Bosonic}} systems}
+      \field{urlday}{2}
+      \field{urlmonth}{8}
+      \field{urlyear}{2023}
+      \field{year}{2023}
+      \field{urldateera}{ce}
+      \verb{doi}
+      \verb 10.48550/arXiv.2307.13801
+      \endverb
+      \verb{eprint}
+      \verb 2307.13801
+      \endverb
+      \verb{file}
+      \verb /home/rrobin/Zotero/storage/3T8TY6UU/Gondolf et al. - 2023 - Energy preserving evolutions over Bosonic systems.pdf;/home/rrobin/Zotero/storage/F5FNNZ86/2307.html
+      \endverb
+    \endentry
+    \entry{mirrahimiDynamicallyProtectedCatqubits2014}{article}{}{}
+      \name{author}{7}{}{%
+        {{hash=9f0172d905b2d33f27fd964eea49cd81}{%
+           family={Mirrahimi},
+           familyi={M\bibinitperiod},
+           given={Mazyar},
+           giveni={M\bibinitperiod}}}%
+        {{hash=f163c26a4d7ae1fbd281d5fb2a1fe26c}{%
+           family={Leghtas},
+           familyi={L\bibinitperiod},
+           given={Zaki},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=db0256bf77f3727d8d424c610129db47}{%
+           family={Albert},
+           familyi={A\bibinitperiod},
+           given={Victor\bibnamedelima V.},
+           giveni={V\bibinitperiod\bibinitdelim V\bibinitperiod}}}%
+        {{hash=979418eb5914a9d500be4be9c49a4f4d}{%
+           family={Touzard},
+           familyi={T\bibinitperiod},
+           given={Steven},
+           giveni={S\bibinitperiod}}}%
+        {{hash=94f9ecc12b98cae95dacbeb76ed867b3}{%
+           family={Schoelkopf},
+           familyi={S\bibinitperiod},
+           given={Robert\bibnamedelima J.},
+           giveni={R\bibinitperiod\bibinitdelim J\bibinitperiod}}}%
+        {{hash=94e7e77f225254d00a8483cd370964e4}{%
+           family={Jiang},
+           familyi={J\bibinitperiod},
+           given={Liang},
+           giveni={L\bibinitperiod}}}%
+        {{hash=e8058e5558aad1aa312d8e4b39163aad}{%
+           family={Devoret},
+           familyi={D\bibinitperiod},
+           given={Michel\bibnamedelima H.},
+           giveni={M\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {IOP Publishing}%
+      }
+      \strng{namehash}{0da12964ea017cba77d9dd16f6cc606a}
+      \strng{fullhash}{de9ebb86f0dc9ff8fbf09cd86a4f4b8b}
+      \strng{fullhashraw}{de9ebb86f0dc9ff8fbf09cd86a4f4b8b}
+      \strng{bibnamehash}{0da12964ea017cba77d9dd16f6cc606a}
+      \strng{authorbibnamehash}{0da12964ea017cba77d9dd16f6cc606a}
+      \strng{authornamehash}{0da12964ea017cba77d9dd16f6cc606a}
+      \strng{authorfullhash}{de9ebb86f0dc9ff8fbf09cd86a4f4b8b}
+      \strng{authorfullhashraw}{de9ebb86f0dc9ff8fbf09cd86a4f4b8b}
+      \field{labelalpha}{Mir+14}
+      \field{sortinit}{M}
+      \field{sortinithash}{4625c616857f13d17ce56f7d4f97d451}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{shorttitle}
+      \field{abstract}{We present a new hardware-efficient paradigm for universal quantum computation which is based on encoding, protecting and manipulating quantum information in a quantum harmonic oscillator. This proposal exploits multi-photon driven dissipative processes to encode quantum information in logical bases composed of Schrödinger cat states. More precisely, we consider two schemes. In a first scheme, a two-photon driven dissipative process is used to stabilize a logical qubit basis of two-component Schrödinger cat states. While such a scheme ensures a protection of the logical qubit against the photon dephasing errors, the prominent error channel of single-photon loss induces bit-flip type errors that cannot be corrected. Therefore, we consider a second scheme based on a four-photon driven dissipative process which leads to the choice of four-component Schrödinger cat states as the logical qubit. Such a logical qubit can be protected against single-photon loss by continuous photon number parity measurements. Next, applying some specific Hamiltonians, we provide a set of universal quantum gates on the encoded qubits of each of the two schemes. In particular, we illustrate how these operations can be rendered fault-tolerant with respect to various decoherence channels of participating quantum systems. Finally, we also propose experimental schemes based on quantum superconducting circuits and inspired by methods used in Josephson parametric amplification, which should allow one to achieve these driven dissipative processes along with the Hamiltonians ensuring the universal operations in an efficient manner.}
+      \field{issn}{1367-2630}
+      \field{journaltitle}{New Journal of Physics}
+      \field{langid}{english}
+      \field{month}{4}
+      \field{number}{4}
+      \field{shorttitle}{Dynamically protected cat-qubits}
+      \field{title}{Dynamically protected cat-qubits: a new paradigm for universal quantum computation}
+      \field{urlday}{17}
+      \field{urlmonth}{8}
+      \field{urlyear}{2023}
+      \field{volume}{16}
+      \field{year}{2014}
+      \field{urldateera}{ce}
+      \field{pages}{045014}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.1088/1367-2630/16/4/045014
+      \endverb
+      \verb{file}
+      \verb /home/rrobin/Zotero/storage/4INX83PT/Mirrahimi et al. - 2014 - Dynamically protected cat-qubits a new paradigm f.pdf
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+

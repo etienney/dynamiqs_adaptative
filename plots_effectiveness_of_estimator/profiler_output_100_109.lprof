@@ -1,0 +1,58 @@
+Timer unit: 1e-07 s
+
+Total time: 47.9805 s
+File: c:\Users\petienne\Desktop\PFE\Gitlab\aposteriori-lindblad\code\tests de fonctions particulières\test_fast_estimateur.py
+Function: profil at line 314
+
+Line #      Hits         Time  Per Hit   % Time  Line Contents
+==============================================================
+   314                                           def profil(ninit, nfinal, H, jump_ops):
+   315         1          7.0      7.0      0.0      k=4
+   316         1    1353031.0    1e+06      0.3      key = jax.random.PRNGKey(2)
+   317         1          3.0      3.0      0.0      new=[]
+   318         1          2.0      2.0      0.0      old=[]
+   319         1          8.0      8.0      0.0      lst_n = range(ninit,nfinal)
+   320                                               # rho=dq.rand_dm(key,(nfinal,nfinal))
+   321         2       7270.0   3635.0      0.0      with Bar('Processing...', max = nfinal-ninit+1) as bar:
+   322        10         67.0      6.7      0.0          for i in lst_n:
+   323         9      14467.0   1607.4      0.0              bar.next()
+   324                                                       # rho=dq.rand_dm(key,(i,i))
+   325         9   11185267.0    1e+06      2.3              rho = random_matrix(i,i)
+   326         9       1246.0    138.4      0.0              told_sum=[]
+   327         9        783.0     87.0      0.0              tnew_sum=[]
+   328         9         61.0      6.8      0.0              sum = 1000
+   329         9     118692.0  13188.0      0.0              fun1 = jax.jit(lambda rho: estimateur_sur(rho,k,H(i+k),jump_ops(i+k)))
+   330         9     117062.0  13006.9      0.0              fun2 = jax.jit(lambda rho: estimateur_opti(rho,k,H(i+k),jump_ops(i+k)))
+   331         9   25614671.0    3e+06      5.3              fun2(rho)
+   332         9   19161425.0    2e+06      4.0              fun1(rho)
+   333      9009      79970.0      8.9      0.0              for x in range(sum):
+   334                                                           # rho=dq.rand_dm(jax.random.PRNGKey(x),(i,i))
+   335                                                           # rho = random_matrix(i,i)
+   336      9000    4813552.0    534.8      1.0                  rho = 0.999 * rho
+   337      9000      67923.0      7.5      0.0                  t1 = time.time()
+   338      9000  298010698.0  33112.3     62.1                  e1=fun1(rho)
+   339      9000     162692.0     18.1      0.0                  told_sum.append(time.time() - t1)
+   340      9000      57078.0      6.3      0.0                  t2 = time.time()
+   341      9000  103328560.0  11481.0     21.5                  e2=fun2(rho)
+   342                                                           # e2=e1
+   343      9000     161970.0     18.0      0.0                  tnew_sum.append(time.time() - t2)
+   344         9     148377.0  16486.3      0.0              if e1==e2:
+   345                                                           print(True)
+   346         9    1584830.0 176092.2      0.3              tnew=jnp.sum(jnp.array(tnew_sum[1:sum]))
+   347         9    1625477.0 180608.6      0.3              told=jnp.sum(jnp.array(told_sum[1:sum]))
+   348         9         69.0      7.7      0.0              new.append(tnew)
+   349         9         52.0      5.8      0.0              old.append(told)
+   350         1    1297414.0    1e+06      0.3      plt.figure()
+   351         1     360942.0 360942.0      0.1      plt.plot(lst_n, new, label='new_time')
+   352         1      11189.0  11189.0      0.0      plt.plot(lst_n, old, '--', label='old_time')
+   353         1      19406.0  19406.0      0.0      plt.yscale('log')
+   354         1       1145.0   1145.0      0.0      plt.xlabel('n')
+   355         1        988.0    988.0      0.0      plt.ylabel('time (ms)')
+   356         1       3513.0   3513.0      0.0      plt.title(f'comparing estimators computations')
+   357         1      38776.0  38776.0      0.0      plt.legend()
+   358         1       8466.0   8466.0      0.0      plt.grid(True)
+   359         1   10352421.0    1e+07      2.2      plt.savefig(f'plots_effectiveness_of_estimator/plot_{ninit}_{nfinal}.png')  # Save the plot
+   360         1      56799.0  56799.0      0.0      plt.close()
+   361         1      38448.0  38448.0      0.0      print(new,old)
+   362         1         36.0     36.0      0.0      return None
+
