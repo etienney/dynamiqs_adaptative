@@ -110,8 +110,6 @@ class DiffraxSolver(BaseSolver):
             return self.result(saved, infos=self.infos(solution.stats))
         else:
             # give additional infos needed for the reshaping
-            # dx.SubSaveAt(steps=True) suppres the first step of integration 
-            # (the input one) so we have to remake it
             jax.debug.print("fin self.estimator: {res}", res = self.estimator)
             return [self.result(saved, infos=self.infos(solution.stats)), 
                 solution.ts[-1], save_c, self.L_reshapings

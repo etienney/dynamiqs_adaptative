@@ -29,7 +29,7 @@ from ..a_posteriori.utils.mesolve_fcts import (
     mesolve_estimator_init,
     latest_non_inf_index
 )
-from ..a_posteriori.utils.utils import find_approx_index
+from ..a_posteriori.utils.utils import find_approx_index, put_together_results
 from ..a_posteriori.n_D.inequalities import *
 from ..a_posteriori.n_D.projection_nD import (
     reduction_nD, extension_nD, projection_nD, mask, dict_nD

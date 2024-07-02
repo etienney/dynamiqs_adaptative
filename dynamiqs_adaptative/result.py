@@ -91,7 +91,7 @@ class Result(eqx.Module):
             'Gradient': (
                 type(self.gradient).__name__ if self.gradient is not None else None
             ),
-            'States  ': array_str(self.states),
+            'States  ': array_str(self.states) if not self.options.reshaping else None,
             'Estimator ': (
                 estimator if self.options.estimator else None
             ),
@@ -105,7 +105,7 @@ class Result(eqx.Module):
             'Extra   ': (
                 eqx.tree_pformat(self.extra) if self.extra is not None else None
             ),
-            'Infos   ': self.infos if self.infos is not None else None,
+            'Infos   ': self.infos if self.infos is not None and not self.options.reshaping else None,
         }
 
     def __str__(self) -> str:
