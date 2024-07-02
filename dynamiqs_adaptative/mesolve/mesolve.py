@@ -35,6 +35,9 @@ from ..a_posteriori.n_D.projection_nD import (
     reduction_nD, extension_nD, projection_nD, mask, dict_nD
 )
 from ..a_posteriori.n_D.reshapings import reshaping_init, reshaping_extend
+from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
+from ..utils.utils import dag
+from ..a_posteriori.utils.mesolve_fcts import mesolve_warning
 import time
 
 __all__ = ['mesolve']
@@ -143,23 +146,19 @@ def mesolve(
         )
         old_steps = len(tsave) 
         true_time = a[1][jnp.isfinite(a[1])]
+        true_steps = len(true_time)
         while true_time[-1]!=tsave[-1]:
-            true_time = a[1][jnp.isfinite(a[1])]
-            true_steps = len(true_time)
-            rho_mod =  a[2].rho[true_steps - 2] # -1 because we want rho and estimator values at true_time[-1] and len adds one
-            true_estimator = a[2].err[true_steps - 2]
-            print("estimator:", true_estimator,"time: ", true_time)
-            print("rho: ", rho_mod)
+            print("verif redo:", true_time[-1], tsave[-1])
+            # print("len true time", true_steps)
+            last_state_index = max(0,true_steps - 2) # -2 because we want rho and estimator values at true_time[-1] and len adds one
+            rho_mod =  a[2].rho[last_state_index]
+            true_estimator = a[2].err[last_state_index]
+            print("estimator:", true_estimator,"time: ", true_time, "\nfull estimator:", a[2].err[jnp.isfinite(a[2].err)])
+            # print("rho: ", rho_mod)
             L_reshapings = a[-1]
-            approx_index = find_approx_index(tsave, true_time[-2]) # enlever le abs ?
-            new_steps = old_steps - find_approx_index(tsave, true_time[-2]) + 1 # +1 for the case under
-            new_tsave = jnp.linspace(true_time[-2], tsave[-1], new_steps) # problem: it's not true (diffrax) time so the algo "clips" to the nearest value
-            # because it is stored differently if save_states is on...
-            # latest_index = latest_non_inf_index(a[0].estimator) # rem : c'est pas le mçeme que find_approx_index ?
-            # t = tsave[approx_index] # -1 since we are redoing the problem
-            # rho = a[0].states[latest_index]
-            # estimator = a[0].estimator[latest_index-2]
-            print(a[0].estimator)
+            # approx_index = find_approx_index(tsave, true_time[last_state_index]) # enlever le abs ?
+            new_steps = old_steps - find_approx_index(tsave, true_time[last_state_index]) + 1 # +1 for the case under # problem: it's not true (diffrax) time so the algo "clips" to the nearest value
+            new_tsave = jnp.linspace(true_time[last_state_index], tsave[-1], new_steps) 
             if L_reshapings[-1]==1 and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
                 te0 = time.time()
                 options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = (
@@ -167,11 +166,29 @@ def mesolve(
                     tensorisation_mod, true_time)
                 )
                 print("temps du reshaping: ", time.time() - te0)
+                Lsred_mod_eval = jnp.stack([L(0) for L in Lsred_mod])
+                Lsd = dag(Lsred_mod_eval)
+                LdL = (Lsd @ Lsred_mod_eval).sum(0)
+                tmp = (-1j * Hred_mod(0) - 0.5 * LdL) @ rho_mod + 0.5 * (Lsred_mod_eval @ rho_mod @ Lsd).sum(0)
+                drho = tmp + dag(tmp)
+                print("estimator calculé:", estimator_derivate_opti_nD(drho, H_mod(0), jnp.stack([L(0) for L in jump_ops_mod]), rho_mod))
+                print("trunc_size: ", options.trunc_size)
             a = _vmap_mesolve(
                 H_mod, jump_ops_mod, rho_mod, new_tsave
                 , exp_ops, solver, gradient, options
                 , Hred_mod, Lsred_mod, _mask_mod, true_estimator, L_reshapings
             )
+            true_time = a[1][jnp.isfinite(a[1])]
+            true_steps = len(true_time)
+        estimator_final = a[0].estimator[-1][0]
+        rho_final = a[0].states[-1]
+        # warn the user if the estimator's tolerance has been reached
+        if (estimator_final > options.estimator_rtol *
+            (solver.atol + 
+            jnp.linalg.norm(rho_final, ord='nuc') * solver.rtol)
+        ):
+            mesolve_warning([estimator_final, rho_final, options.estimator_rtol, 
+            solver.atol , solver.rtol])
         return a[0]
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects

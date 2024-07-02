@@ -21,7 +21,7 @@ def estimator_derivate_simple_nD(
     return jnp.linalg.norm(L_rho-L_rho_reduced, ord='nuc')
 
 def estimator_derivate_opti_nD(drho, GH, GLs, rho):
-    # optimised version of above
+    # dynamiqs method optimized version of above
     L_rho_reduced = drho
     Lsd = dag(GLs)
     LdL = (Lsd @ GLs).sum(0)

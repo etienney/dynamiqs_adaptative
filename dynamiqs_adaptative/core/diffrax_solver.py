@@ -45,7 +45,7 @@ class DiffraxSolver(BaseSolver):
             subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
             subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
             # to have solver times
-            subsaveat_c = dx.SubSaveAt(steps=True)
+            subsaveat_c = dx.SubSaveAt(t0 =True, steps=True)
             saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b, subsaveat_c])
             # saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
 
@@ -65,7 +65,7 @@ class DiffraxSolver(BaseSolver):
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 )
-                jax.debug.print("{b} and {c} , {tprev}", b=a, c =state.tprev * (
+                jax.debug.print("activation: {b} and error seuil: {c}, and time: {tprev}", b=a, c =state.tprev * (
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 ), tprev = state.tprev)
@@ -75,7 +75,7 @@ class DiffraxSolver(BaseSolver):
                 jax.lax.cond(a, lambda: self.L_reshapings.append(1), lambda: None) 
                 return a
             event = dx.DiscreteTerminatingEvent(cond_fn=condition)
-            
+            # jax.debug.print("self.estimator: {res}", res = self.estimator)
             # === solve differential equation with diffrax
             solution = dx.diffeqsolve(
                 self.terms,
@@ -85,8 +85,7 @@ class DiffraxSolver(BaseSolver):
                 dt0=self.dt0,
                 y0=State(
                     self.y0, # the solution at current time
-                    self.estimator if self.estimator is not None
-                    else jnp.zeros(1, dtype = cdtype()), # the estimator at current time
+                    self.estimator, # the estimator at current time
                 ) if self.options.estimator else self.y0,
                 discrete_terminating_event=event if self.options.reshaping else None,
                 saveat=saveat,
@@ -105,21 +104,15 @@ class DiffraxSolver(BaseSolver):
             saved = self.collect_saved(
             save_a, [save_b.rho[0],save_b.err[0]]
             )
-            # warn the user if the estimator's tolerance has been reached
-            jax.lax.cond(save_b.err[0][0] > self.options.estimator_rtol *
-            (self.solver.atol + 
-            jnp.linalg.norm(save_b.rho[0], ord='nuc') * self.solver.rtol), 
-            mesolve_warning, lambda L: None
-            , [save_b,  self.options.estimator_rtol, 
-            self.solver.atol , self.solver.rtol])
         else: 
             saved = self.collect_saved(save_a, save_b[0])
         if not self.options.reshaping:
             return self.result(saved, infos=self.infos(solution.stats))
         else:
             # give additional infos needed for the reshaping
-            # true_time = solution.ts[jnp.isfinite(solution.ts[-1])]
-            # print(true_time, true_time[-1])
+            # dx.SubSaveAt(steps=True) suppres the first step of integration 
+            # (the input one) so we have to remake it
+            jax.debug.print("fin self.estimator: {res}", res = self.estimator)
             return [self.result(saved, infos=self.infos(solution.stats)), 
                 solution.ts[-1], save_c, self.L_reshapings
             ]

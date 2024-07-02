@@ -22,6 +22,9 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
         L0 = jnp.stack([L(t0) for L in jump_ops])
         lazy_tensorisation = options.tensorisation
         tmp_dic=options.__dict__
+        if lazy_tensorisation is None:
+            lazy_tensorisation = [len(H0[0])]
+            tmp_dic['tensorisation']=lazy_tensorisation
         if options.trunc_size is None:
             if (
                 type(H)!=ConstantTimeArray or 
@@ -45,7 +48,7 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
                 trunc_size = degree_guesser_nD_list(H0, L0, lazy_tensorisation)
                 # for the 2 see [the article]
                 # We setup the results in options
-                tmp_dic['trunc_size'] = [x.item() for x in jnp.array(trunc_size)]
+                tmp_dic['trunc_size'] = [2 * x.item() for x in jnp.array(trunc_size)]
         inequalities = generate_rec_ineqs(
             [(a - 1) - b for a, b in zip(lazy_tensorisation, options.trunc_size)]
         )# -1 since list indexing strats at 0
@@ -67,7 +70,7 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
     return options, Hred, Lsred, _mask, inequalities, tensorisation
 
 def mesolve_warning(L):
-    save_b,  estimator_rtol, atol , rtol = L
+    err, rho, estimator_rtol, atol , rtol = L
     jax.debug.print(
         'WARNING : At this truncature of your simulation\'s size, '
         'it\'s not possible to warranty anymore the accuracy of '
@@ -75,8 +78,8 @@ def mesolve_warning(L):
     )
     jax.debug.print(
         "estimated error = {err} > {estimator_rtol} * tolerance = {tol}", 
-        err = ((save_b.err[0][0]).real.astype(float)), tol = 
-        estimator_rtol * (atol + jnp.linalg.norm(save_b.rho[0], ord='nuc') * rtol)
+        err = ((err).real.astype(float)), tol = 
+        estimator_rtol * (atol + jnp.linalg.norm(rho, ord='nuc') * rtol)
         , estimator_rtol = estimator_rtol 
     )
     return None
