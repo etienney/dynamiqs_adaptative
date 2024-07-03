@@ -161,7 +161,6 @@ class AdaptiveSolver(DiffraxSolver):
                 f' {self.nrejected} rejected)'
             )
 
-    dt0 = None
 
     @property
     def stepsize_controller(self) -> dx.AbstractStepSizeController:

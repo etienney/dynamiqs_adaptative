@@ -96,11 +96,13 @@ def mesolve_warning(solution, options, solver):
     return None
 
 def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings, rho_all
-    , estimator_all, H, jump_ops, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod,
-    options, tensorisation_mod):
+    , estimator_all, H, jump_ops, options, H_mod, jump_ops_mod, Hred_mod, 
+    Lsred_mod, _mask_mod, tensorisation_mod):
     true_time = mesolve_iteration[1][jnp.isfinite(mesolve_iteration[1])]
     true_steps = len(true_time)
     last_state_index = max(0,true_steps - 2)
+    dt0 = true_time[-1] - true_time[-2]
+    print("dt0:", dt0)
     new_steps = old_steps - find_approx_index(tsave, true_time[last_state_index]) + 1
     new_tsave = jnp.linspace(true_time[last_state_index], tsave[-1], new_steps) 
     if dx.RESULTS.discrete_terminating_event_occurred==mesolve_iteration[-1]:
@@ -111,7 +113,7 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     true_estimator = mesolve_iteration[2].err[last_state_index]
     rho_all.append(mesolve_iteration[2].rho[:true_steps])
     estimator_all.append(mesolve_iteration[2].err[:true_steps])
-    print("estimator all qui charge:", estimator_all)
+    # print("estimator all qui charge:", estimator_all)
     if L_reshapings[-1]==1: # and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
         te0 = time.time()
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
@@ -129,7 +131,7 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     print("estimator:", true_estimator,"time: ", true_time)
     print("L_reshapings:", L_reshapings)
     return (rho_all, estimator_all, L_reshapings, true_estimator, new_tsave, true_time,
-            options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+            dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
             tensorisation_mod)
 
 def latest_non_inf_index(lst):

@@ -121,6 +121,7 @@ def mesolve(
     tsave = jnp.asarray(tsave)
     exp_ops = jnp.asarray(exp_ops, dtype=cdtype()) if exp_ops is not None else None
     estimator = jnp.zeros(1, dtype = cdtype())
+    dt0 = None
 
     # === estimator part
     options, Hred, Lsred, _mask, inequalities, tensorisation = (
@@ -150,17 +151,16 @@ def mesolve(
         while True: # do while syntax in Python
             mesolve_iteration = _vmap_mesolve(
             H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, options
-            , Hred_mod, Lsred_mod, _mask_mod, true_estimator
+            , Hred_mod, Lsred_mod, _mask_mod, true_estimator, dt0
             )
             (rho_all, estimator_all, L_reshapings, true_estimator, new_tsave, true_time,
-            options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+            dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
             tensorisation_mod) = mesolve_iteration_prepare(mesolve_iteration, old_steps, 
-            tsave, L_reshapings, rho_all, estimator_all, H, jump_ops, H_mod, 
-            jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, options, tensorisation_mod)
+            tsave, L_reshapings, rho_all, estimator_all, H, jump_ops, options, 
+            H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod)
             
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # do while syntax
                 break
-        print(estimator_all)
         mesolve_result = mesolve_iteration[3].result(
         Saved(put_together_results(rho_all, 2), None, None, 
         put_together_results(estimator_all, 2, True)), None)
@@ -169,7 +169,7 @@ def mesolve(
         # (which are not JIT-compatible) to JAX arrays
         mesolve_result = _vmap_mesolve(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-            , Hred, Lsred, _mask, estimator
+            , Hred, Lsred, _mask, estimator, dt0
         )
     if options.estimator and not options.reshaping:
         # warn the user if the estimator's tolerance has been reached
@@ -191,6 +191,7 @@ def _vmap_mesolve(
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
     estimator: Array | None,
+    dt0: float | None
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
@@ -207,6 +208,7 @@ def _vmap_mesolve(
         [is_timearray_batched(L) for L in Lsred] if Lsred is not None else False,
         False,
         False, # estimateur = False ?
+        False,
     )
 
     # the result is vectorized over `_saved` and `infos`
@@ -218,7 +220,7 @@ def _vmap_mesolve(
     # === apply vectorized function
     return f(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-            , Hred, Lsred, _mask, estimator
+            , Hred, Lsred, _mask, estimator, dt0
         )
 
 
@@ -235,6 +237,7 @@ def _mesolve(
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
     estimator: Array | None,
+    dt0: float,
 ) -> MEResult:
     # === select solver class
     solvers = {
@@ -252,7 +255,7 @@ def _mesolve(
     # === init solver
     solver = solver_class(
             tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
-            , Hred, Lsred, _mask, estimator
+            , Hred, Lsred, _mask, estimator, dt0
         )
     
     # === run solver
