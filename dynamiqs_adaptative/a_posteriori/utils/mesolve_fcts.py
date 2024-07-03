@@ -1,3 +1,4 @@
+from ...a_posteriori.n_D.reshapings import reshaping_extend
 from ..one_D.degree_guesser_1D import degree_guesser_list
 from ..n_D.degree_guesser_nD import degree_guesser_nD_list
 from ..n_D.projection_nD import projection_nD, dict_nD, mask
@@ -6,7 +7,12 @@ from ..n_D.inequalities import generate_rec_ineqs
 from ...core._utils import _astimearray
 # from ...mesolve.mesolve import _vmap_mesolve
 from .utils import find_approx_index
+from ...a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
+
+from ...utils.utils import dag
 from ...time_array import ConstantTimeArray
+import diffrax as dx
+import time as time
 from ...options import Options
 
 import jax
@@ -88,6 +94,44 @@ def mesolve_warning(solution, options, solver):
             (solver.atol + jnp.linalg.norm(rho_final, ord='nuc') * solver.rtol)     
         )
     return None
+
+def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings, rho_all
+    , estimator_all, H, jump_ops, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod,
+    options, tensorisation_mod):
+    true_time = mesolve_iteration[1][jnp.isfinite(mesolve_iteration[1])]
+    true_steps = len(true_time)
+    last_state_index = max(0,true_steps - 2)
+    new_steps = old_steps - find_approx_index(tsave, true_time[last_state_index]) + 1
+    new_tsave = jnp.linspace(true_time[last_state_index], tsave[-1], new_steps) 
+    if dx.RESULTS.discrete_terminating_event_occurred==mesolve_iteration[-1]:
+        L_reshapings.append(1)
+    else:
+        L_reshapings.append(0)
+    rho_mod =  mesolve_iteration[2].rho[last_state_index]
+    true_estimator = mesolve_iteration[2].err[last_state_index]
+    rho_all.append(jnp.array(rho_mod))
+    estimator_all.append(jnp.array(true_estimator))
+    if L_reshapings[-1]==1: # and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
+        te0 = time.time()
+        (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+        tensorisation_mod) = (reshaping_extend(options, H, jump_ops, rho_mod,
+        tensorisation_mod, true_time)
+        )
+        print("temps du reshaping: ", time.time() - te0)
+        Lsred_mod_eval = jnp.stack([L(0) for L in Lsred_mod])
+        Lsd = dag(Lsred_mod_eval)
+        LdL = (Lsd @ Lsred_mod_eval).sum(0)
+        tmp = (-1j * Hred_mod(0) - 0.5 * LdL) @ rho_mod + 0.5 * (Lsred_mod_eval @ rho_mod @ Lsd).sum(0)
+        drho = tmp + dag(tmp)
+        print("estimator calculé:", estimator_derivate_opti_nD(drho, H_mod(0), 
+        jnp.stack([L(0) for L in jump_ops_mod]), rho_mod))
+        print("trunc_size: ", options.trunc_size)
+    print("estimator:", true_estimator,"time: ", true_time, "\nfull estimator:", 
+    mesolve_iteration[2].err[jnp.isfinite(mesolve_iteration[2].err)])
+    print("L_reshapings:", L_reshapings)
+    return (rho_all, estimator_all, L_reshapings, true_estimator, new_tsave, true_time,
+            options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+            tensorisation_mod)
 
 def latest_non_inf_index(lst):
     # find the latest elements in a list that is not inf

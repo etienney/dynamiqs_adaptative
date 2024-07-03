@@ -14,7 +14,6 @@ from ...utils.states import fock_dm
 from ...utils.operators import destroy
 from ...utils.utils.general import tensor, dag
 from ...utils.random import rand_dm
-from ..utils.mesolve_fcts import mesolve_estimator_init
 from .estimator_derivate_nD import estimator_derivate_opti_nD
 import jax
 
@@ -120,6 +119,7 @@ def trace_ineq_states(tensorisation, inequalities, rho):
 
 
 def unit_test_mesolve_estimator_init():
+    from ..utils.mesolve_fcts import mesolve_estimator_init
     def run_mesolve_estimator_init(lazy_tensorisation):
         tsave = jnp.linspace(0, 1 , 100)
         product_rho = prod([a for a in lazy_tensorisation])
@@ -171,6 +171,7 @@ def unit_test_mesolve_estimator_init():
     )
 
 def unit_test_reshaping_init():
+    from ..utils.mesolve_fcts import mesolve_estimator_init
     def run_reshaping_init(lazy_tensorisation):
         tsave = jnp.linspace(0, 1 , 100)
         product_rho = prod([a for a in lazy_tensorisation])
@@ -246,6 +247,7 @@ def unit_test_reshaping_init():
     )
 
 def unit_test_extension():
+    from ..utils.mesolve_fcts import mesolve_estimator_init
     def run_extension(lazy_tensorisation):
         tsave = jnp.linspace(0, 1 , 100)
         product_rho = prod([a for a in lazy_tensorisation])

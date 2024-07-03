@@ -27,7 +27,9 @@ from .mepropagator import MEPropagator
 
 from ..a_posteriori.utils.mesolve_fcts import (
     mesolve_estimator_init,
-    latest_non_inf_index
+    latest_non_inf_index,
+    mesolve_warning,
+    mesolve_iteration_prepare
 )
 from ..a_posteriori.utils.utils import find_approx_index, put_together_results
 from ..a_posteriori.n_D.inequalities import *
@@ -37,9 +39,7 @@ from ..a_posteriori.n_D.projection_nD import (
 from ..a_posteriori.n_D.reshapings import reshaping_init, reshaping_extend
 from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
 from ..utils.utils import dag
-from ..a_posteriori.utils.mesolve_fcts import mesolve_warning
 from ..result import Result, Saved
-import diffrax as dx
 import time
 
 __all__ = ['mesolve']
@@ -137,70 +137,30 @@ def mesolve(
     if options.estimator and options.tensorisation is not None and options.reshaping:
         # a first reshaping to reduce 
         ti0 = time.time()
-        options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, tensorisation_mod = reshaping_init(
+        options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = reshaping_init(
             options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, solver.atol
         )
         print(time.time() - ti0)
-        a = _vmap_mesolve(
-            H_mod, jump_ops_mod, rho0_mod, tsave, exp_ops, solver, gradient, options
-            , Hred_mod, Lsred_mod, _mask_mod, estimator
-        )
+        true_estimator = estimator
+        new_tsave = tsave
         L_reshapings = [0]
         old_steps = len(tsave) 
-        true_time = a[1][jnp.isfinite(a[1])]
-        true_steps = len(true_time)
-        last_state_index = max(0,true_steps - 2)
-        # print("les probléééémes", (a[2].err[last_state_index + 1][-1]).real, a[2].rho[last_state_index + 1])
-        if dx.RESULTS.discrete_terminating_event_occurred==a[-1]:
-            L_reshapings.append(1)
-        else:
-            L_reshapings.append(0)
         estimator_all = []
         rho_all = []
-        estimator_all.append(jnp.array(a[2].err[last_state_index]))
-        rho_all.append(jnp.array(a[2].rho[last_state_index]))
-        while true_time[-1]!=tsave[-1] or L_reshapings[-1]==1:
-            print("verif redo:", true_time[-1], tsave[-1])
-            # print("len true time", true_steps)
-            rho_mod =  a[2].rho[last_state_index]
-            true_estimator = a[2].err[last_state_index]
-            print("estimator:", true_estimator,"time: ", true_time, "\nfull estimator:", a[2].err[jnp.isfinite(a[2].err)])
-            # print("rho: ", rho_mod)
-            # approx_index = find_approx_index(tsave, true_time[last_state_index]) # enlever le abs ?
-            new_steps = old_steps - find_approx_index(tsave, true_time[last_state_index]) + 1 # +1 for the case under # problem: it's not true (diffrax) time so the algo "clips" to the nearest value
-            new_tsave = jnp.linspace(true_time[last_state_index], tsave[-1], new_steps) 
-            print(L_reshapings)
-            if L_reshapings[-1]==1: # and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
-                te0 = time.time()
-                options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = (
-                reshaping_extend(options, H, jump_ops, rho_mod,
-                    tensorisation_mod, true_time)
-                )
-                print("temps du reshaping: ", time.time() - te0)
-                Lsred_mod_eval = jnp.stack([L(0) for L in Lsred_mod])
-                Lsd = dag(Lsred_mod_eval)
-                LdL = (Lsd @ Lsred_mod_eval).sum(0)
-                tmp = (-1j * Hred_mod(0) - 0.5 * LdL) @ rho_mod + 0.5 * (Lsred_mod_eval @ rho_mod @ Lsd).sum(0)
-                drho = tmp + dag(tmp)
-                print("estimator calculé:", estimator_derivate_opti_nD(drho, H_mod(0), jnp.stack([L(0) for L in jump_ops_mod]), rho_mod))
-                print("trunc_size: ", options.trunc_size)
-            a = _vmap_mesolve(
-                H_mod, jump_ops_mod, rho_mod, new_tsave
-                , exp_ops, solver, gradient, options
-                , Hred_mod, Lsred_mod, _mask_mod, true_estimator
+        while True: # do while syntax in Python
+            mesolve_iteration = _vmap_mesolve(
+            H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, options
+            , Hred_mod, Lsred_mod, _mask_mod, true_estimator
             )
-            true_time = a[1][jnp.isfinite(a[1])]
-            true_steps = len(true_time)
-            last_state_index = max(0,true_steps - 2) # -2 because we want rho and estimator values at true_time[-1] and len adds one
-            estimator_all.append(jnp.array(a[2].err[last_state_index]))
-            rho_all.append(jnp.array(a[2].rho[last_state_index]))
-            if dx.RESULTS.discrete_terminating_event_occurred==a[-1]:
-                L_reshapings.append(1)
-            else:
-                L_reshapings.append(0)
-        # warn the user if the estimator's tolerance has been reached
-        mesolve_warning(a[0], options, solver)
-        mesolve_result = a[3].result(Saved(put_together_results(rho_all, 2), None, None, put_together_results(estimator_all, 2)), None)
+            (rho_all, estimator_all, L_reshapings, true_estimator, new_tsave, true_time,
+            options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+            tensorisation_mod) = mesolve_iteration_prepare(mesolve_iteration, old_steps, 
+            tsave, L_reshapings, rho_all, estimator_all, H, jump_ops, H_mod, 
+            jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, options, tensorisation_mod)
+            
+            if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # do while syntax
+                break
+        mesolve_result = mesolve_iteration[3].result(Saved(put_together_results(rho_all, 2), None, None, put_together_results(estimator_all, 2)), None)
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects
         # (which are not JIT-compatible) to JAX arrays
