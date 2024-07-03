@@ -69,19 +69,24 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
         options, Hred, Lsred, _mask, inequalities, tensorisation = options, None, None, 0, 0, 0
     return options, Hred, Lsred, _mask, inequalities, tensorisation
 
-def mesolve_warning(L):
-    err, rho, estimator_rtol, atol , rtol = L
-    jax.debug.print(
-        'WARNING : At this truncature of your simulation\'s size, '
-        'it\'s not possible to warranty anymore the accuracy of '
-        'your results. Try to enlarge the truncature'
-    )
-    jax.debug.print(
-        "estimated error = {err} > {estimator_rtol} * tolerance = {tol}", 
-        err = ((err).real.astype(float)), tol = 
-        estimator_rtol * (atol + jnp.linalg.norm(rho, ord='nuc') * rtol)
-        , estimator_rtol = estimator_rtol 
-    )
+def mesolve_warning(solution, options, solver):
+    estimator_final = solution.estimator[-1][0]
+    rho_final = solution.states[-1]
+    if (estimator_final > options.estimator_rtol * (solver.atol + 
+        jnp.linalg.norm(rho_final, ord='nuc') * solver.rtol)
+    ):
+        jax.debug.print(
+            'WARNING : At this truncature of your simulation\'s size, '
+            'it\'s not possible to warranty anymore the accuracy of '
+            'your results. Try to enlarge the truncature'
+        )
+        jax.debug.print(
+            "estimated error = {err} > {estimator_rtol} * tolerance = {tol}", 
+            err = ((estimator_final).real.astype(float)), 
+            estimator_rtol = options.estimator_rtol,
+            tol = options.estimator_rtol * 
+            (solver.atol + jnp.linalg.norm(rho_final, ord='nuc') * solver.rtol)     
+        )
     return None
 
 def latest_non_inf_index(lst):

@@ -151,8 +151,6 @@ def mesolve(
         true_steps = len(true_time)
         last_state_index = max(0,true_steps - 2)
         # print("les probléééémes", (a[2].err[last_state_index + 1][-1]).real, a[2].rho[last_state_index + 1])
-        print(a[-1])
-        print(dx.RESULTS.discrete_terminating_event_occurred==a[-1])
         if dx.RESULTS.discrete_terminating_event_occurred==a[-1]:
             L_reshapings.append(1)
         else:
@@ -196,34 +194,24 @@ def mesolve(
             last_state_index = max(0,true_steps - 2) # -2 because we want rho and estimator values at true_time[-1] and len adds one
             estimator_all.append(jnp.array(a[2].err[last_state_index]))
             rho_all.append(jnp.array(a[2].rho[last_state_index]))
-            condi = (a[2].err[last_state_index + 1][-1]).real >= true_time[-1] * (# /!\ on a l'estimator ou la version divisée par dt dans state ?
-                options.estimator_rtol * (solver.atol + 
-                jnp.linalg.norm(a[2].rho[last_state_index + 1], ord='nuc') * solver.rtol)
-            )
             if dx.RESULTS.discrete_terminating_event_occurred==a[-1]:
                 L_reshapings.append(1)
             else:
                 L_reshapings.append(0)
-        estimator_final = a[0].estimator[-1][0]
-        rho_final = a[0].states[-1]
-        
-        # a[0].states = put_together_results(rho_all, 2)
-        # a[0].estimator = put_together_results(estimator_all, 2)
         # warn the user if the estimator's tolerance has been reached
-        if (estimator_final > options.estimator_rtol *
-            (solver.atol + 
-            jnp.linalg.norm(rho_final, ord='nuc') * solver.rtol)
-        ):
-            mesolve_warning([estimator_final, rho_final, options.estimator_rtol, 
-            solver.atol , solver.rtol])
-        return a[3].result(Saved(put_together_results(rho_all, 2), None, None, put_together_results(estimator_all, 2)), None)
+        mesolve_warning(a[0], options, solver)
+        mesolve_result = a[3].result(Saved(put_together_results(rho_all, 2), None, None, put_together_results(estimator_all, 2)), None)
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects
         # (which are not JIT-compatible) to JAX arrays
-        return _vmap_mesolve(
+        mesolve_result = _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
                 , Hred, Lsred, _mask, estimator
             )
+    if options.estimator:
+        # warn the user if the estimator's tolerance has been reached
+        mesolve_warning(mesolve_result, options, solver)
+    return mesolve_result
     
 
 @partial(jax.jit, static_argnames=('solver', 'gradient', 'options'))
