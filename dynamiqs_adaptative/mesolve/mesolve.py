@@ -38,6 +38,8 @@ from ..a_posteriori.n_D.reshapings import reshaping_init, reshaping_extend
 from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
 from ..utils.utils import dag
 from ..a_posteriori.utils.mesolve_fcts import mesolve_warning
+from ..result import Result, Saved
+import diffrax as dx
 import time
 
 __all__ = ['mesolve']
@@ -124,7 +126,6 @@ def mesolve(
     options, Hred, Lsred, _mask, inequalities, tensorisation = (
         mesolve_estimator_init(options, H, jump_ops, tsave)
     )
-    L_reshapings = [] # to store the reshapings if options.reshaping
 
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)
@@ -142,24 +143,36 @@ def mesolve(
         print(time.time() - ti0)
         a = _vmap_mesolve(
             H_mod, jump_ops_mod, rho0_mod, tsave, exp_ops, solver, gradient, options
-            , Hred_mod, Lsred_mod, _mask_mod, estimator, L_reshapings
+            , Hred_mod, Lsred_mod, _mask_mod, estimator
         )
+        L_reshapings = [0]
         old_steps = len(tsave) 
         true_time = a[1][jnp.isfinite(a[1])]
         true_steps = len(true_time)
-        while true_time[-1]!=tsave[-1]:
+        last_state_index = max(0,true_steps - 2)
+        # print("les probléééémes", (a[2].err[last_state_index + 1][-1]).real, a[2].rho[last_state_index + 1])
+        print(a[-1])
+        print(dx.RESULTS.discrete_terminating_event_occurred==a[-1])
+        if dx.RESULTS.discrete_terminating_event_occurred==a[-1]:
+            L_reshapings.append(1)
+        else:
+            L_reshapings.append(0)
+        estimator_all = []
+        rho_all = []
+        estimator_all.append(jnp.array(a[2].err[last_state_index]))
+        rho_all.append(jnp.array(a[2].rho[last_state_index]))
+        while true_time[-1]!=tsave[-1] or L_reshapings[-1]==1:
             print("verif redo:", true_time[-1], tsave[-1])
             # print("len true time", true_steps)
-            last_state_index = max(0,true_steps - 2) # -2 because we want rho and estimator values at true_time[-1] and len adds one
             rho_mod =  a[2].rho[last_state_index]
             true_estimator = a[2].err[last_state_index]
             print("estimator:", true_estimator,"time: ", true_time, "\nfull estimator:", a[2].err[jnp.isfinite(a[2].err)])
             # print("rho: ", rho_mod)
-            L_reshapings = a[-1]
             # approx_index = find_approx_index(tsave, true_time[last_state_index]) # enlever le abs ?
             new_steps = old_steps - find_approx_index(tsave, true_time[last_state_index]) + 1 # +1 for the case under # problem: it's not true (diffrax) time so the algo "clips" to the nearest value
             new_tsave = jnp.linspace(true_time[last_state_index], tsave[-1], new_steps) 
-            if L_reshapings[-1]==1 and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
+            print(L_reshapings)
+            if L_reshapings[-1]==1: # and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
                 te0 = time.time()
                 options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = (
                 reshaping_extend(options, H, jump_ops, rho_mod,
@@ -176,12 +189,26 @@ def mesolve(
             a = _vmap_mesolve(
                 H_mod, jump_ops_mod, rho_mod, new_tsave
                 , exp_ops, solver, gradient, options
-                , Hred_mod, Lsred_mod, _mask_mod, true_estimator, L_reshapings
+                , Hred_mod, Lsred_mod, _mask_mod, true_estimator
             )
             true_time = a[1][jnp.isfinite(a[1])]
             true_steps = len(true_time)
+            last_state_index = max(0,true_steps - 2) # -2 because we want rho and estimator values at true_time[-1] and len adds one
+            estimator_all.append(jnp.array(a[2].err[last_state_index]))
+            rho_all.append(jnp.array(a[2].rho[last_state_index]))
+            condi = (a[2].err[last_state_index + 1][-1]).real >= true_time[-1] * (# /!\ on a l'estimator ou la version divisée par dt dans state ?
+                options.estimator_rtol * (solver.atol + 
+                jnp.linalg.norm(a[2].rho[last_state_index + 1], ord='nuc') * solver.rtol)
+            )
+            if dx.RESULTS.discrete_terminating_event_occurred==a[-1]:
+                L_reshapings.append(1)
+            else:
+                L_reshapings.append(0)
         estimator_final = a[0].estimator[-1][0]
         rho_final = a[0].states[-1]
+        
+        # a[0].states = put_together_results(rho_all, 2)
+        # a[0].estimator = put_together_results(estimator_all, 2)
         # warn the user if the estimator's tolerance has been reached
         if (estimator_final > options.estimator_rtol *
             (solver.atol + 
@@ -189,13 +216,13 @@ def mesolve(
         ):
             mesolve_warning([estimator_final, rho_final, options.estimator_rtol, 
             solver.atol , solver.rtol])
-        return a[0]
+        return a[3].result(Saved(put_together_results(rho_all, 2), None, None, put_together_results(estimator_all, 2)), None)
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects
         # (which are not JIT-compatible) to JAX arrays
         return _vmap_mesolve(
                 H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask, estimator, L_reshapings
+                , Hred, Lsred, _mask, estimator
             )
     
 
@@ -213,7 +240,6 @@ def _vmap_mesolve(
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
     estimator: Array | None,
-    L_reshapings: list | None,
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
@@ -230,7 +256,6 @@ def _vmap_mesolve(
         [is_timearray_batched(L) for L in Lsred] if Lsred is not None else False,
         False,
         False, # estimateur = False ?
-        False,
     )
 
     # the result is vectorized over `_saved` and `infos`
@@ -242,7 +267,7 @@ def _vmap_mesolve(
     # === apply vectorized function
     return f(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-            , Hred, Lsred, _mask, estimator, L_reshapings
+            , Hred, Lsred, _mask, estimator
         )
 
 
@@ -259,7 +284,6 @@ def _mesolve(
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
     estimator: Array | None,
-    L_reshapings: list | None,
 ) -> MEResult:
     # === select solver class
     solvers = {
@@ -277,7 +301,7 @@ def _mesolve(
     # === init solver
     solver = solver_class(
             tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops
-            , Hred, Lsred, _mask, estimator, L_reshapings
+            , Hred, Lsred, _mask, estimator
         )
     
     # === run solver

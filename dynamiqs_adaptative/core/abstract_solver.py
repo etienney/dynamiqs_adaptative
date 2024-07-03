@@ -97,7 +97,6 @@ class MESolver(BaseSolver):
     Lsred: list[TimeArray]
     _mask: Array
     estimator: Array
-    L_reshapings: list
     
     def result(self, saved: Saved, infos: PyTree | None = None) -> Result:
         return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)

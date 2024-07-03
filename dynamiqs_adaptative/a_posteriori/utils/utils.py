@@ -108,18 +108,24 @@ def ineq_to_tensorisation(old_inequalities, max_tensorisation):
             old_tensorisation.append(tensor)
     return old_tensorisation
 
-def put_together_results(L, k):
+def put_together_results(L, k, join = False):
     """
     The reshaping outputs some [0, 0.1, 0.2, 0.3, 0.4], [0.3, 0.4, 0.5, ...,  1.0] for a 
     jnp.linespace(0,1.0,11) for the time for instance.
     We would like to put together the lists (here in L) and cut the redundant parts,
     and they are k of them per end of lists (apart from the last) (here k = 2)
-    the output should be the jnp.linespace(0,1.0,11)
+    the output should be the [0, 0.1, 0.2, 0.3, 0.4], [0.5, ...,  1.0] if not join
+    and [0, 0.1, 0.2, 0.3, 0.4, 0.5, ...,  1.0] if join
     """
     Lnew = []
     for i in range(len(L)-1):
-        Lnew = Lnew + L[i][:-k]
+        if join:
+            Lnew = Lnew + L[i][:-k]
+        else:
+            Lnew.append(L[i][:-k])
     # the last list should be taken as a whole
-    Lnew = Lnew + L[-1]
+    if join:
+        Lnew = Lnew + L[-1]
+    else:
+        Lnew.append(L[-1])
     return Lnew
-

@@ -124,6 +124,7 @@ class Result(eqx.Module):
 
     def to_numpy(self) -> Result:
         raise NotImplementedError
+    
 
 
 class SEResult(Result):
