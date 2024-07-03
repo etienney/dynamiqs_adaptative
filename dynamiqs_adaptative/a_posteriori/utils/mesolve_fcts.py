@@ -109,8 +109,9 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
         L_reshapings.append(0)
     rho_mod =  mesolve_iteration[2].rho[last_state_index]
     true_estimator = mesolve_iteration[2].err[last_state_index]
-    rho_all.append(jnp.array(rho_mod))
-    estimator_all.append(jnp.array(true_estimator))
+    rho_all.append(mesolve_iteration[2].rho[:true_steps])
+    estimator_all.append(mesolve_iteration[2].err[:true_steps])
+    print("estimator all qui charge:", estimator_all)
     if L_reshapings[-1]==1: # and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
         te0 = time.time()
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
@@ -125,9 +126,7 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
         drho = tmp + dag(tmp)
         print("estimator calculé:", estimator_derivate_opti_nD(drho, H_mod(0), 
         jnp.stack([L(0) for L in jump_ops_mod]), rho_mod))
-        print("trunc_size: ", options.trunc_size)
-    print("estimator:", true_estimator,"time: ", true_time, "\nfull estimator:", 
-    mesolve_iteration[2].err[jnp.isfinite(mesolve_iteration[2].err)])
+    print("estimator:", true_estimator,"time: ", true_time)
     print("L_reshapings:", L_reshapings)
     return (rho_all, estimator_all, L_reshapings, true_estimator, new_tsave, true_time,
             options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 

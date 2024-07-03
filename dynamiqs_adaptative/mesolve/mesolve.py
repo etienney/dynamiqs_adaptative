@@ -160,15 +160,18 @@ def mesolve(
             
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # do while syntax
                 break
-        mesolve_result = mesolve_iteration[3].result(Saved(put_together_results(rho_all, 2), None, None, put_together_results(estimator_all, 2)), None)
+        print(estimator_all)
+        mesolve_result = mesolve_iteration[3].result(
+        Saved(put_together_results(rho_all, 2), None, None, 
+        put_together_results(estimator_all, 2, True)), None)
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects
         # (which are not JIT-compatible) to JAX arrays
         mesolve_result = _vmap_mesolve(
-                H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-                , Hred, Lsred, _mask, estimator
-            )
-    if options.estimator:
+            H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+            , Hred, Lsred, _mask, estimator
+        )
+    if options.estimator and not options.reshaping:
         # warn the user if the estimator's tolerance has been reached
         mesolve_warning(mesolve_result, options, solver)
     return mesolve_result
