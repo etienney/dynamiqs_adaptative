@@ -16,8 +16,9 @@ from .abstract_solver import BaseSolver
 from ..options import Options
 
 from .abstract_solver import State
-from ..a_posteriori.utils.mesolve_fcts import mesolve_warning
+from ..a_posteriori.utils.mesolve_fcts import check_max_reshaping_reached
 from ..a_posteriori.utils.utils import prod
+
 
 from .._utils import cdtype
 
@@ -69,7 +70,10 @@ class DiffraxSolver(BaseSolver):
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 ), tprev = state.tprev)
                 return a
-            event = dx.DiscreteTerminatingEvent(cond_fn=condition)
+            if not check_max_reshaping_reached(self.options, self.Hred):
+                event = dx.DiscreteTerminatingEvent(cond_fn=condition)
+            else:
+                event = None
             # jax.debug.print("self.estimator: {res}", res = self.estimator)
             # === solve differential equation with diffrax
             solution = dx.diffeqsolve(

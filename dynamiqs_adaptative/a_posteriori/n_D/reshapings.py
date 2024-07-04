@@ -9,7 +9,7 @@ from ..n_D.inequalities import generate_rec_ineqs
 from dynamiqs_adaptative.a_posteriori.utils.utils import prod
 from ..one_D.degree_guesser_1D import degree_guesser_list
 from ..n_D.degree_guesser_nD import degree_guesser_nD_list
-from ...time_array import ConstantTimeArray
+from ...time_array import ConstantTimeArray, TimeArray
 from ...utils.states import fock_dm
 from ...utils.operators import destroy
 from ...utils.utils.general import tensor, dag
@@ -29,7 +29,7 @@ def reshaping_init(
     # We first check if it does not create too much of an approximation to modify the
     # matrix size this way
     """WARNING we do it by checking the diagonal values, which is not theoreticaly
-    justified.
+    justified. it's just a guess.
     Also we just do an absolute tolerance, relative tolerance would need to compute
     a norm which is expensive."""
     inequalities_for_reduc = generate_rec_ineqs(
@@ -60,10 +60,10 @@ def reshaping_init(
         tmp_dic=options.__dict__
         tmp_dic['inequalities'] = [[None, x] for x in rec_ineq]
         options=Options(**tmp_dic) 
-        _mask_mod = mask(H_mod, dict_nD(tensorisation, inequalities))
+        _mask_mod = mask(H_mod, dict_nD(tensorisation, inequalities, options))
         Hred_mod, rho0_mod, *Lsred_mod = projection_nD(
             [H_mod] + [rho0_mod] + [L for L in jump_ops_mod],
-            None, None, _mask_mod
+            None, None, None, _mask_mod
         )
         H_mod = _astimearray(H_mod)
         jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
@@ -91,7 +91,7 @@ def reshaping_extend(
     # print("rho mod dans resh", rho_mod)
     tensorisation = temp[1]
     # print(tensorisation)
-    _mask = mask(rho_mod, dict_nD(tensorisation, inequalities))
+    _mask = mask(rho_mod, dict_nD(tensorisation, inequalities, options))
     # print(jnp.array(H).shape)
     extended_inequalities = generate_rec_ineqs(
     [a[1] + b for a, b in 
@@ -103,7 +103,8 @@ def reshaping_extend(
     # print(len(tensorisation), tensorisation, options.trunc_size)
     # print(H_mod, Ls_mod)
     # print(jnp.array(H_mod).shape, jnp.array(Ls_mod[0]).shape)
-    Hred_mod, *Lsred_mod = projection_nD([H_mod] + [L for L in Ls_mod], None, None, _mask)
+    Hred_mod, *Lsred_mod = projection_nD(
+        [H_mod] + [L for L in Ls_mod], None, None, None, _mask)
     H_mod = _astimearray(H_mod)
     Ls_mod = [_astimearray(L) for L in Ls_mod]
     Hred_mod = _astimearray(Hred_mod)
@@ -116,7 +117,8 @@ def trace_ineq_states(tensorisation, inequalities, rho):
     dictio = dict_nD(tensorisation, inequalities)
     return sum([rho[i][i] for i in dictio])
 
-
+def check_max_reshaping_reached(options, obj: TimeArray):
+    return prod(options.tensorisation)==len(obj(0)[0])
 
 def unit_test_mesolve_estimator_init():
     from ..utils.mesolve_fcts import mesolve_estimator_init

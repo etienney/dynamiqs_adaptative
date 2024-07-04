@@ -1,4 +1,4 @@
-from ...a_posteriori.n_D.reshapings import reshaping_extend
+from ...a_posteriori.n_D.reshapings import reshaping_extend, check_max_reshaping_reached
 from ..one_D.degree_guesser_1D import degree_guesser_list
 from ..n_D.degree_guesser_nD import degree_guesser_nD_list
 from ..n_D.projection_nD import projection_nD, dict_nD, mask
@@ -6,7 +6,7 @@ from ..n_D.tensorisation_maker import tensorisation_maker
 from ..n_D.inequalities import generate_rec_ineqs
 from ...core._utils import _astimearray
 # from ...mesolve.mesolve import _vmap_mesolve
-from .utils import find_approx_index
+from .utils import find_approx_index, prod
 from ...a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
 
 from ...utils.utils import dag
@@ -62,9 +62,9 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
         [None, (a - 1) - b] for a, b in zip(lazy_tensorisation, options.trunc_size)
         ]
         tensorisation = tensorisation_maker(lazy_tensorisation)
-        _mask = mask(H0, dict_nD(tensorisation, inequalities))
+        _mask = mask(H0, dict_nD(tensorisation, inequalities, options))
         Hred, *Lsred = projection_nD(
-            [H0] + list(L0), tensorisation, inequalities, _mask
+            [H0] + list(L0), tensorisation, inequalities, options, _mask
         )
         options = Options(**tmp_dic)
         # reconvert to Timearray args
@@ -105,7 +105,13 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     print("dt0:", dt0)
     new_steps = old_steps - find_approx_index(tsave, true_time[last_state_index]) + 1
     new_tsave = jnp.linspace(true_time[last_state_index], tsave[-1], new_steps) 
-    if dx.RESULTS.discrete_terminating_event_occurred==mesolve_iteration[-1]:
+    print(options.tensorisation)
+    print(tensorisation_mod[-1])
+    
+    if check_max_reshaping_reached(options, H_mod):
+        L_reshapings.append(2)
+        print("wesh alors")
+    elif dx.RESULTS.discrete_terminating_event_occurred==mesolve_iteration[-1]:
         L_reshapings.append(1)
     else:
         L_reshapings.append(0)
@@ -114,7 +120,8 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     rho_all.append(mesolve_iteration[2].rho[:true_steps])
     estimator_all.append(mesolve_iteration[2].err[:true_steps])
     # print("estimator all qui charge:", estimator_all)
-    if L_reshapings[-1]==1: # and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
+    if (L_reshapings[-1]==1
+    ):# and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
         te0 = time.time()
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod) = (reshaping_extend(options, H, jump_ops, rho_mod,
@@ -130,6 +137,7 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
         jnp.stack([L(0) for L in jump_ops_mod]), rho_mod))
     print("estimator:", true_estimator,"time: ", true_time)
     print("L_reshapings:", L_reshapings)
+    # print("Ls", [jump_ops_mod[0](0)[i][i].item() for i in range(len(jump_ops_mod[0](0)[0]))], "\n", [Lsred_mod[0](0)[i][i].item() for i in range(len(Lsred_mod[0](0)[0]))], "\nrho", [rho_mod[i][i].item() for i in range(len(rho_mod[0]))], "\n mask", _mask_mod[0], "\ntensor", tensorisation_mod, "\nest", true_estimator)
     return (rho_all, estimator_all, L_reshapings, true_estimator, new_tsave, true_time,
             dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
             tensorisation_mod)

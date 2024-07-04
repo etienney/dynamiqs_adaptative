@@ -8,7 +8,7 @@ from ..utils.utils import prod, split_contiguous_indices, shift_ranges, ineq_to_
 from ..._utils import cdtype
 
 def projection_nD(
-        objs, original_tensorisation = None, inequalities = None, _mask = None
+    objs, original_tensorisation = None, inequalities = None, options=None, _mask = None
 ):
     """
     create a tensorial projection of some n dimensional matrix "objs" tensorised under 
@@ -36,7 +36,7 @@ def projection_nD(
     if _mask is None:
         if original_tensorisation is None or inequalities is None:
             raise ValueError(" You have to either give a mask or a tensorisation with some inequalities")
-        dictio = dict_nD(original_tensorisation, inequalities)
+        dictio = dict_nD(original_tensorisation, inequalities, options)
         _mask = mask(new_objs[0], dictio)
     for i in range(len(new_objs)):
         new_objs[i] = jnp.where(_mask, new_objs[i], 0)
@@ -72,9 +72,9 @@ def extension_nD(
     Returns:
     objs: list of matrices with zeros placed.
     """
-    lenobjs = len(objs)
+    # lenobjs = len(objs)
     max_tensorisation = options.tensorisation
-    indices = [range(max_dim) for max_dim in max_tensorisation]
+    # indices = [range(max_dim) for max_dim in max_tensorisation]
     # inequalities = generate_rec_ineqs([x[1] for x in options.inequalities])
     full_ineq_params = [x[1] + b for x, b in zip(options.inequalities, options.trunc_size)]
     extended_ineq_params = [x[1] + 2 * b for x, b in zip(options.inequalities, options.trunc_size)]
@@ -104,7 +104,7 @@ def extension_nD(
     return new_objs, ineq_to_tensors
 
 def extension_nD_old(
-        objs, old_tensorisation, max_tensorisation, inequalities, options, bypass = False
+    objs, old_tensorisation, max_tensorisation, inequalities, options, bypass = False
 ):
     """
     Extend the objs up to the max_tensorisation by putting zeros cols and rows in spots
@@ -152,7 +152,7 @@ def extension_nD_old(
     # print(old_tensorisation, tensorisation)
     return new_objs, tensorisation
 
-def dict_nD(tensorisation, inequalities):
+def dict_nD(tensorisation, inequalities, options=None):
     # dictio will make us able to repertoriate the indices to suppress
     dictio=[]
     # i compte l'indice sur lequel on se trouve pour l'encodage en machine des positions
@@ -162,10 +162,16 @@ def dict_nD(tensorisation, inequalities):
         # we check if some inequalities aren't verified, if so we will add the line
         # in dictio for it to be cut off later
         for inegality in inequalities:
+            if options is not None: # not a very optimized thing...
+                if any(tensorisation[i][j] > options.tensorisation[j] - 1 - 
+                    options.trunc_size[j] for j in range(len(options.tensorisation))
+                ):
+                    dictio.append(i)
+                    break
             if not inegality(*tuple(tensorisation[i])):
                 dictio.append(i)
                 break # to avoid appending the same line multiple times
-
+            
     return dictio
 
 def mask(obj, dict):
@@ -187,6 +193,7 @@ def mask(obj, dict):
         mask = jnp.where(jnp.arange(obj.shape[1])[None, :] == x, False, mask)  # Zero out column
 
     return mask
+
 
 def add_zeros_line(matrix, k):
     """
@@ -292,7 +299,8 @@ def delete_matrix_elements(obj, positions):
     
     # Create masks to keep track of rows and columns to keep
     mask = jnp.ones(obj.shape[0], dtype=bool)
-    mask = mask.at[positions].set(False)
+    if positions.size!=0:
+        mask = mask.at[positions].set(False)
     
     # Apply masks to delete rows and columns
     obj = obj[mask][:, mask]
@@ -305,16 +313,28 @@ def unit_test_projection_nD():
     original_tensorisation = ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2))
     inequalities = [lambda i, j: i <= 1, lambda i, j: j <= 1]
     objs = [jnp.arange(1, 37).reshape(6, 6)]
-    objs = projection_nD(objs, original_tensorisation, inequalities)
-    
-    expected_result =   [jnp.array([[1, 2, 0, 4, 5, 0],
-                                    [7, 8, 0, 10, 11, 0],
-                                    [0, 0, 0, 0, 0, 0], 
-                                    [19, 20, 0, 22, 23, 0],
-                                    [25, 26, 0, 28, 29, 0],
-                                    [0, 0, 0, 0, 0, 0]])]
-                                    
-    return jnp.array_equal(objs, expected_result)
+    options = Options(tensorisation=[100,100], trunc_size=[4,2])
+    res = projection_nD(objs, original_tensorisation, inequalities, options)
+    expected_result =   [jnp.array([
+        [1, 2, 0, 4, 5, 0],
+        [7, 8, 0, 10, 11, 0],
+        [0, 0, 0, 0, 0, 0], 
+        [19, 20, 0, 22, 23, 0],
+        [25, 26, 0, 28, 29, 0],
+        [0, 0, 0, 0, 0, 0]])]
+    options2 = Options(tensorisation=[2,3], trunc_size=[1,1])
+    objs2 = [jnp.arange(1, 37).reshape(6, 6)]# if not put res is also modified next line
+    res2 = projection_nD(objs2, original_tensorisation, inequalities, options2)
+    expected_result2 = [jnp.array([
+       [1, 2, 0, 0, 0, 0],
+       [7, 8, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0],
+       [0, 0, 0, 0, 0, 0]])]
+    print(res2)
+    return (jnp.array_equal(res, expected_result) and
+            jnp.array_equal(res2, expected_result2))
 
 def unit_test_reduction_nD():
     lazy_tensorisation = [7,5]
@@ -388,20 +408,34 @@ def unit_test_extension_nD():
         return temp
     lazy_tensorisation_2D = [7,4]
     max_lazy_tensorisation_2D = [100,100]
-    trunc_size_2D=[4,2]
+    trunc_size_2D = [4,2]
     lazy_tensorisation_1D = [7]
     max_lazy_tensorisation_1D = [100]
-    trunc_size_1D=[4]
+    trunc_size_1D = [4]
     ext_2D = run_test(lazy_tensorisation_2D, max_lazy_tensorisation_2D, trunc_size_2D)
     ext_1D = run_test(lazy_tensorisation_1D, max_lazy_tensorisation_1D, trunc_size_1D)
+    ext_2D_max = run_test(lazy_tensorisation_2D, [9,10], trunc_size_2D)
+    ext_1D_max = run_test(lazy_tensorisation_1D, [8], trunc_size_1D)
     print("extension first line", ext_2D[0][0][0]) 
+    print("extension first line with near max", ext_2D_max[0][0][0]) 
     expected_first_line_2D =  jnp.array(
         [0., 1., 2., 3., 0., 0., 4., 5., 6., 7., 0., 0., 8., 9., 10., 11., 0., 0.,
         12., 13., 14., 15., 0., 0., 16., 17., 18., 19., 0., 0., 20., 21., 22., 23.,
         0., 0., 24., 25., 26., 27., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
         0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
+    expected_first_line_2D_max = jnp.array(
+        [0., 1., 2., 3., 0., 0., 4., 5., 6., 7., 0., 0.,
+        8., 9., 10., 11., 0., 0., 12., 13., 14., 15., 0., 0.,
+        16., 17., 18., 19., 0., 0., 20., 21., 22., 23., 0., 0.,
+        24., 25., 26., 27., 0., 0., 0., 0., 0., 0., 0., 0.,
+        0., 0., 0., 0., 0., 0.]
+    ) # to check that near the max_extension it's also okay
+    print(expected_first_line_2D_max)
+    print(ext_2D_max[0][0][0])
     print("ext_1D:", ext_1D[0])
-    return (jnp.array_equal(expected_first_line_2D, ext_2D[0][0][0])
+    print("ext_1D_max:", ext_1D_max[0])
+    return (jnp.array_equal(expected_first_line_2D, ext_2D[0][0][0]) and
+            jnp.array_equal(expected_first_line_2D_max, ext_2D_max[0][0][0]) 
     )
 
 
