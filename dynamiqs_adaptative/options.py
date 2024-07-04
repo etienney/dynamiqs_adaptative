@@ -83,12 +83,10 @@ class Options(eqx.Module):
     reshaping: bool | list = False
     tensorisation: tuple | None = None
     inequalities: list | None = None
-    estimator_rtol : int | None = 100
+    estimator_rtol : float | None = 100
     trunc_size: Array | None = None
-    # parameters the user is not supposed to touch
-    projH: TimeArray | None = None
-    projL: TimeArray | None = None
-    mask: Array | None = None
+    downsizing_rtol : float | None = 100 
+
 
     def __init__(
         self,
@@ -101,11 +99,9 @@ class Options(eqx.Module):
         reshaping: bool | list = False,
         tensorisation: tuple | None = None,
         inequalities: list | None = None,
-        estimator_rtol : int | None = 100,
+        estimator_rtol : float | None = 100,
         trunc_size: Array | None = None,
-        projH: TimeArray | None = None,
-        projL: TimeArray | None = None,
-        mask: Array | None = None,
+        downsizing_rtol : float | None = 100,
     ):
         
         self.save_states = save_states
@@ -118,9 +114,7 @@ class Options(eqx.Module):
         self.reshaping = reshaping
         self.estimator_rtol = estimator_rtol
         self.trunc_size = trunc_size
-        self.projH = projH
-        self.projL = projL
-        self.mask = mask
+        self.downsizing_rtol = downsizing_rtol
 
         # make `save_extra` a valid Pytree with `jax.tree_util.Partial`
         if save_extra is not None:
