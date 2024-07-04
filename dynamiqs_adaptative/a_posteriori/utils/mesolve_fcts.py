@@ -110,7 +110,9 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
-        print("wesh alors")
+        print("""WARNING: your space wasn't large enough to capture the dynamic up to
+              the tolerance. Give a larger max space[link to what it means] or try to 
+              see if your dynamic isn't exploding""")
     elif dx.RESULTS.discrete_terminating_event_occurred==mesolve_iteration[-1]:
         L_reshapings.append(1)
     else:
