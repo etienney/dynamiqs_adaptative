@@ -5,7 +5,9 @@ from .inequalities import generate_rec_ineqs
 from ...options import Options
 import math
 from ..utils.utils import (
-    prod, split_contiguous_indices, shift_ranges, ineq_to_tensorisation, reverse_indices
+    prod, split_contiguous_indices, shift_ranges, ineq_to_tensorisation, 
+    reverse_indices, generate_square_indices_around, eliminate_duplicates, to_hashable,
+    cut_over_max_tensorisation
 )
 from ..._utils import cdtype
 
@@ -75,23 +77,24 @@ def extension_nD(
     Returns:
     objs: list of matrices with zeros placed.
     """
-    # lenobjs = len(objs)
-    max_tensorisation = options.tensorisation
-    # indices = [range(max_dim) for max_dim in max_tensorisation]
-    # inequalities = generate_rec_ineqs([x[1] for x in options.inequalities])
     full_ineq_params = [x[1] + b for x, b in zip(options.inequalities, options.trunc_size)]
-    extended_ineq_params = [x[1] + 2 * b for x, b in zip(options.inequalities, options.trunc_size)]
     full_inequalities = generate_rec_ineqs(full_ineq_params)
-    extended_inequalities = generate_rec_ineqs(extended_ineq_params)
     # print("ineq:", full_ineq_params, "extended ineq:", extended_ineq_params)
-    ineq_to_tensors = ineq_to_tensorisation(extended_inequalities, max_tensorisation)
+    # ineq_to_tensors = ineq_to_tensorisation(extended_inequalities, max_tensorisation)
     # print("tensorisation:", ineq_to_tensors)
+    ineq_to_tensors = extended_tensorisation(full_inequalities, options)
+    # print("tensorisation aprés:", ineq_to_tensors)
     len_new_objs = len(ineq_to_tensors)
     reverse_dictio = reverse_indices(dict_nD(ineq_to_tensors, full_inequalities), len_new_objs - 1)
-    # print("reverse dictio:", reverse_dictio)
     new_positions = split_contiguous_indices(reverse_dictio)
     old_positions = shift_ranges(new_positions)
     # print("old positions:",old_positions, "new positions:", new_positions)
+    return extension(objs, new_positions, old_positions, len_new_objs), ineq_to_tensors
+
+def extension(objs, new_positions, old_positions, len_new_objs):
+    """
+    The extension itself.
+    """
     len_pos = len(old_positions)
     new_objs = []
     for obj in objs:
@@ -104,7 +107,8 @@ def extension_nD(
                     old_positions[j][0]:old_positions[j][1]+1]
                 )
         new_objs.append(new_obj)
-    return new_objs, ineq_to_tensors
+    return new_objs
+
 
 def extension_nD_old(
     objs, old_tensorisation, max_tensorisation, inequalities, options, bypass = False
@@ -316,7 +320,29 @@ def delete_matrix_elements(obj, positions):
     obj = obj[mask][:, mask]
     return obj
 
-
+def extended_tensorisation(new_ineq, options):
+    # complexity n*k^2
+    ineq_to_tensors = ineq_to_tensorisation(new_ineq, options.tensorisation)
+    L=[]
+    len_trunc_size = len(options.trunc_size)
+    for tensor in ineq_to_tensors:
+        if any((tensor[i]==0 for i in range(len_trunc_size))):
+            for new_tensor in (generate_square_indices_around(tensor, 
+                options.trunc_size)):
+                L.append(new_tensor)
+        else:
+            tensor_enlarged_for_truncature = [x + trunc for x, trunc in 
+                zip(tensor, options.trunc_size)
+            ]
+            L.append(tensor_enlarged_for_truncature)
+    L = to_hashable(cut_over_max_tensorisation(L, [x- 1 for x in 
+        options.tensorisation])
+    ) # because tensorisation starts at 0
+    for tensor in L:
+        if tensor not in ineq_to_tensors:
+            ineq_to_tensors.append(tensor)
+    ineq_to_tensors = sorted(eliminate_duplicates(ineq_to_tensors))
+    return ineq_to_tensors
 
 
 def unit_test_projection_nD():
@@ -452,10 +478,16 @@ def unit_test_extension_nD():
     lazy_tensorisation_1D = [7]
     max_lazy_tensorisation_1D = [100]
     trunc_size_1D = [4]
+    max_lazy_tensorisation_2D_short = [9,10]
+    max_lazy_tensorisation_1D_short = [8]
     ext_2D = run_test(lazy_tensorisation_2D, max_lazy_tensorisation_2D, trunc_size_2D)
     ext_1D = run_test(lazy_tensorisation_1D, max_lazy_tensorisation_1D, trunc_size_1D)
-    ext_2D_max = run_test(lazy_tensorisation_2D, [9,10], trunc_size_2D)
-    ext_1D_max = run_test(lazy_tensorisation_1D, [8], trunc_size_1D)
+    ext_2D_max = run_test(lazy_tensorisation_2D, max_lazy_tensorisation_2D_short, 
+        trunc_size_2D
+    )
+    ext_1D_max = run_test(lazy_tensorisation_1D, max_lazy_tensorisation_1D_short, 
+        trunc_size_1D
+    )
     print("extension first line", ext_2D[0][0][0]) 
     print("extension first line with near max", ext_2D_max[0][0][0]) 
     expected_first_line_2D =  jnp.array(

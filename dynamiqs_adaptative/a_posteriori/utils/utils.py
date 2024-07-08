@@ -127,3 +127,29 @@ def put_together_results(L, k, estimator = False):
     else: Lnew.extend(L[-1])
     if estimator: Lnew = jnp.concatenate(Lnew)
     return Lnew
+
+def generate_square_indices_around(static_list, dimensions):
+    # Generate all possible combinations of indices for the given dimensions
+    index_combinations = itertools.product(*[range(dim + 1) for dim in dimensions])
+    # Add the static list to each combination of indices
+    return [list(map(sum, zip(comb, static_list))) for comb in index_combinations]
+
+def cut_over_max_tensorisation(list, max_tensorisation):
+    """
+    remove tensorisation above the max_tensorisation
+    """
+    len_tensor = len(max_tensorisation)
+    filtered_list = [tensor for tensor in list if not 
+        any(tensor[i] > max_tensorisation[i] for i in range(len_tensor))
+    ]
+    return filtered_list
+
+def eliminate_duplicates(lists):
+    unique_lists = []
+    seen = set()
+    for lst in lists:
+        t = tuple(lst)  # Convert the list to a tuple so it can be added to a set
+        if t not in seen:
+            seen.add(t)
+            unique_lists.append(lst)
+    return unique_lists
