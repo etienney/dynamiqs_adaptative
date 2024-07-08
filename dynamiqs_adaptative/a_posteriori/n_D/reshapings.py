@@ -6,7 +6,7 @@ from ...options import Options
 
 import jax.numpy as jnp
 from ..n_D.inequalities import generate_rec_ineqs
-from dynamiqs_adaptative.a_posteriori.utils.utils import prod
+from ..utils.utils import prod, ineq_to_tensorisation, to_hashable
 from ..one_D.degree_guesser_1D import degree_guesser_list
 from ..n_D.degree_guesser_nD import degree_guesser_nD_list
 from ...time_array import ConstantTimeArray, TimeArray
@@ -47,7 +47,7 @@ def reshaping_init(
     else:
         temp = reduction_nD(
             [H(tsave[0])] + [rho0] + [L(tsave[0]) for L in jump_ops],
-            tensorisation, inequalities_for_reduc
+            tensorisation, inequalities_for_reduc, options
         )
         H_mod, rho0_mod, *jump_ops_mod = temp[0]
         # print(jnp.array(H_mod).shape[0], [(a-1)//2 for a, b in 
@@ -97,7 +97,7 @@ def reshaping_extend(
     [a[1] + b for a, b in 
     zip(options.inequalities, options.trunc_size)]
     )
-    temp = reduction_nD([H] + [L for L in Ls], tensorisation_maker(options.tensorisation), extended_inequalities)
+    temp = reduction_nD([H] + [L for L in Ls], tensorisation_maker(options.tensorisation), extended_inequalities, options)
     H_mod, *Ls_mod = temp[0]
     tensorisation = temp[1]
     # print(len(tensorisation), tensorisation, options.trunc_size)
@@ -111,6 +111,50 @@ def reshaping_extend(
     Lsred_mod = [_astimearray(L) for L in Lsred_mod]
     return options, H_mod, Ls_mod, Hred_mod, Lsred_mod, rho_mod, _mask, tensorisation
 
+def reshapings_reduce(options, H, jump_ops, rho, tensorisation, tsave
+    ):
+    inequalities_for_reduc = generate_rec_ineqs(
+            [a[1] for a, b in 
+            zip(options.inequalities, options.trunc_size)]
+    )
+    temp = reduction_nD(
+        [H(tsave[0])] + [rho] + [L(tsave[0]) for L in jump_ops],
+        tensorisation, inequalities_for_reduc, options
+    )
+    H_mod, rho_mod, *jump_ops_mod = temp[0]
+    # print(jnp.array(H_mod).shape[0], [(a-1)//2 for a, b in 
+    #     zip(options.tensorisation, options.trunc_size)])
+    tensorisation = temp[1]
+    # we set our rectangular params in options
+    rec_ineq = [a[1] - b for a, b in 
+            zip(options.inequalities, options.trunc_size)]
+    inequalities = generate_rec_ineqs(rec_ineq)
+    tmp_dic=options.__dict__
+    tmp_dic['inequalities'] = [[None, x] for x in rec_ineq]
+    options=Options(**tmp_dic) 
+    _mask_mod = mask(H_mod, dict_nD(tensorisation, inequalities, options))
+    Hred_mod, rho_mod, *Lsred_mod = projection_nD(
+        [H_mod] + [rho_mod] + [L for L in jump_ops_mod],
+        None, None, None, _mask_mod
+    )
+    H_mod = _astimearray(H_mod)
+    jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
+    Hred_mod = _astimearray(Hred_mod)
+    Lsred_mod = [_astimearray(L) for L in Lsred_mod]
+    return options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation
+
+def error_reducing(rho, options):
+    # compute the error made by reducing rho
+    rec_ineq = [a[1] - b for a, b in 
+        zip(options.inequalities, options.trunc_size)]
+    inequalities = generate_rec_ineqs(rec_ineq)
+    rec_ineq_prec = [a[1] for a in options.inequalities]
+    inequalities_previous = generate_rec_ineqs(rec_ineq_prec)
+    tensorisation = ineq_to_tensorisation(inequalities_previous, options.tensorisation)
+    proj_reducing = projection_nD([rho], tensorisation, inequalities, options)
+    # jax.debug.print("rho{a}\nand reduced{b}", a=rho, b=proj_reducing[0])
+    return jnp.linalg.norm(proj_reducing[0]-rho, ord='nuc')
+# 
 def trace_ineq_states(tensorisation, inequalities, rho):
     # compute a partial trace only on the states concerned by the inequalities (ie that
     # would be suppresed if one applied a reduction_nD on those)
@@ -120,6 +164,25 @@ def trace_ineq_states(tensorisation, inequalities, rho):
 def check_max_reshaping_reached(options, obj: TimeArray):
     return prod(options.tensorisation)==len(obj(0)[0])
 
+def check_not_under_truncature(tensorisation, trunc_size):
+    """
+    Check if the a certain tensorsation is not under 2 times the truncature to avoid
+    problems with the estimator.
+    For instance if we have trunc_size = [8,4] and we check the tensorisation [7,1], it 
+    returns true, while [8,1] returns False (tensorisation starting at 0)
+    """
+    return any(tensorisation[j] > max(trunc_size[j] - 1, 0)
+        for j in range(len(trunc_size))
+    )
+
+def check_in_max_truncature(tensorisation, options):
+    """
+    Add this tensorisation to the mask for projecting if it's near the max attainable 
+    tensorisation. (needed to compute the estimator)
+    """
+    return any(tensorisation[j] > options.tensorisation[j] - 1 - 
+        options.trunc_size[j] for j in range(len(options.tensorisation))
+    )
 def unit_test_mesolve_estimator_init():
     from ..utils.mesolve_fcts import mesolve_estimator_init
     def run_mesolve_estimator_init(lazy_tensorisation):
@@ -374,8 +437,118 @@ def unit_test_extension():
             estimator==0
     )
 
+def unit_test_error_reducing():
+    def run_test(lazy_tensorisation):
+        product_rho = prod([a for a in lazy_tensorisation])
+        rho = jnp.arange(0, product_rho**(2)).reshape(product_rho, product_rho)
+        tensorisation_max = [4 * a for a in lazy_tensorisation]
+        trunc_size = jnp.array([1 + i for i in range(len(lazy_tensorisation))])
+        rec_ineq_prec = jnp.array([a - 1 for a in lazy_tensorisation])
+        inequalities_previous = generate_rec_ineqs(rec_ineq_prec)
+        options = Options(trunc_size=trunc_size, tensorisation=tensorisation_max,
+            inequalities=[[a, b] for a, b in zip(inequalities_previous, rec_ineq_prec)]
+        )
+        return error_reducing(rho, options)
+    lazy_tensorisation_2D = [3,4]
+    res = run_test(lazy_tensorisation_2D)
+    expected_res = 1123.5209
+    return (expected_res == res)
 
-
+def unit_test_reshaping_reduce():
+    from ..utils.mesolve_fcts import mesolve_estimator_init
+    def run_reshaping_init(lazy_tensorisation):
+        tsave = jnp.linspace(0, 1 , 100)
+        product_rho = prod([a for a in lazy_tensorisation])
+        H = jnp.arange(0, product_rho**(2)).reshape(product_rho, product_rho)
+        Ls = [jnp.arange(1, product_rho**(2) + 1).reshape(product_rho, product_rho), 
+            jnp.arange(2, product_rho**(2) + 2).reshape(product_rho, product_rho)
+        ]
+        H = _astimearray(H)
+        Ls = [_astimearray(L) for L in Ls]
+        rho0 = fock_dm(lazy_tensorisation, [0 for x in lazy_tensorisation]) 
+        max_tensorisation = [4 * a for a in lazy_tensorisation]
+        trunc_size = [1 + i for i in range(len(lazy_tensorisation))]
+        rec_ineq = [(a - b - 1) - b for a, b in
+            zip(lazy_tensorisation, trunc_size)] # supposing - b - 1 ie 
+        # the inequalities are in there good place
+        inequalities = generate_rec_ineqs(rec_ineq)
+        options = Options(estimator=True, tensorisation=max_tensorisation, 
+            reshaping=True, trunc_size=trunc_size,
+            inequalities=[[a, b] for a, b in zip(inequalities, rec_ineq)]
+        ) # we fake a trunc_size
+        print("H:", H(0))
+        tensorisation = tensorisation_maker(lazy_tensorisation)
+        print("pretensorisation", tensorisation, "\npreineq", options.inequalities)
+        resh_init = reshapings_reduce(options, H, Ls, rho0, tensorisation,
+        tsave)
+        print("\nineq", resh_init[0].inequalities, "\ntrunc size:", resh_init[0].trunc_size, "\nH_mod:", resh_init[1](0), "\nHred_mod:", resh_init[3](0), "\nmask:", resh_init[6], "\ntensorisation:", resh_init[7])
+        return resh_init
+    lazy_tensorisation_1D = [10]
+    lazy_tensorisation_2D = [6,10]
+    resh_init_1D = run_reshaping_init(lazy_tensorisation_1D)
+    resh_init_2D = run_reshaping_init(lazy_tensorisation_2D)
+    expected_H_mod_1D = jnp.array([
+        [ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  7.],
+        [10., 11., 12., 13., 14., 15., 16., 17.],
+        [20., 21., 22., 23., 24., 25., 26., 27.],
+        [30., 31., 32., 33., 34., 35., 36., 37.],
+        [40., 41., 42., 43., 44., 45., 46., 47.],
+        [50., 51., 52., 53., 54., 55., 56., 57.],
+        [60., 61., 62., 63., 64., 65., 66., 67.],
+        [70., 71., 72., 73., 74., 75., 76., 77.]])
+    expected_mask_1D = jnp.array([
+        [ True,  True,  True,  True,  True,  True,  True, False],
+        [ True,  True,  True,  True,  True,  True,  True, False],
+        [ True,  True,  True,  True,  True,  True,  True, False],
+        [ True,  True,  True,  True,  True,  True,  True, False],
+        [ True,  True,  True,  True,  True,  True,  True, False],
+        [ True,  True,  True,  True,  True,  True,  True, False],
+        [ True,  True,  True,  True,  True,  True,  True, False],
+        [False, False, False, False, False, False, False, False]])
+    expected_Hred_mod_1D = jnp.array([
+        [ 0.,  1.,  2.,  3.,  4.,  5.,  6.,  0.],
+        [10., 11., 12., 13., 14., 15., 16.,  0.],
+        [20., 21., 22., 23., 24., 25., 26.,  0.],
+        [30., 31., 32., 33., 34., 35., 36.,  0.],
+        [40., 41., 42., 43., 44., 45., 46.,  0.],
+        [50., 51., 52., 53., 54., 55., 56.,  0.],
+        [60., 61., 62., 63., 64., 65., 66.,  0.],
+        [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]])
+    expected_tensorisation_1D = [[0], [1], [2], [3], [4], [5], [6], [7]]
+    expected_ineq_1D = [[None, 6]]
+    expected_Hred_mod_2D = jnp.array([ 0.,  1.,  2.,  3.,  0.,  0., 10., 11., 12., 13.,
+        0.,  0., 20., 21., 22., 23.,  0.,  0.,  0.,  0.,
+        0.,  0.,  0.,  0.]) # just the first line
+    expected_H_mod_2D = jnp.array([ 0.,  1.,  2.,  3.,  4.,  5., 10., 11., 12., 13.,
+        14., 15., 20., 21., 22., 23., 24., 25., 30., 31.,
+        32., 33., 34., 35.])
+    expected_mask_2D = jnp.array([ True,  True,  True,  True, False, False,  True,  
+        True, True,  True, False, False,  True,  True,  True,  True,
+        False, False, False, False, False, False, False, False])
+    expected_tensorisation_2D = [[0, 0], [0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [1, 0], [1, 1], [1, 2], [1, 3], [1, 4], [1, 5], [2, 0], [2, 1], [2, 2], [2, 3], [2, 4], [2, 5], [3, 0], [3, 1], [3, 2], [3, 3], [3, 4], [3, 5]]
+    expected_ineq_2D = [[None, 2], [None, 3]] 
+    print(jnp.array_equal(expected_H_mod_1D, resh_init_1D[1](0)) ,
+        jnp.array_equal(expected_Hred_mod_1D, resh_init_1D[3](0)) ,
+        jnp.array_equal(expected_mask_1D, resh_init_1D[6]) ,
+        jnp.array_equal(expected_tensorisation_1D, resh_init_1D[7]) ,
+        (expected_ineq_1D == resh_init_1D[0].inequalities) ,
+        jnp.array_equal(expected_Hred_mod_2D, resh_init_2D[3](0)[0]) ,
+        jnp.array_equal(expected_H_mod_2D, resh_init_2D[1](0)[0]) ,
+        jnp.array_equal(expected_mask_2D, resh_init_2D[6][0]) ,
+        jnp.array_equal(expected_tensorisation_2D, resh_init_2D[7]) ,
+        (expected_ineq_2D == resh_init_2D[0].inequalities)
+    )
+    return (jnp.array_equal(expected_H_mod_1D, resh_init_1D[1](0)) and
+        jnp.array_equal(expected_Hred_mod_1D, resh_init_1D[3](0)) and
+        jnp.array_equal(expected_mask_1D, resh_init_1D[6]) and
+        jnp.array_equal(expected_tensorisation_1D, resh_init_1D[7]) and
+        (expected_ineq_1D == resh_init_1D[0].inequalities) and
+        jnp.array_equal(expected_Hred_mod_2D, resh_init_2D[3](0)[0]) and
+        jnp.array_equal(expected_H_mod_2D, resh_init_2D[1](0)[0]) and
+        jnp.array_equal(expected_mask_2D, resh_init_2D[6][0]) and
+        jnp.array_equal(expected_tensorisation_2D, resh_init_2D[7]) and
+        (expected_ineq_2D == resh_init_2D[0].inequalities)
+    )
 
 
 

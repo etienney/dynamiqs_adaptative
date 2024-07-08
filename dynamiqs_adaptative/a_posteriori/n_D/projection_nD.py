@@ -4,19 +4,21 @@ from .tensorisation_maker import tensorisation_maker
 from .inequalities import generate_rec_ineqs
 from ...options import Options
 import math
-from ..utils.utils import prod, split_contiguous_indices, shift_ranges, ineq_to_tensorisation, reverse_indices
+from ..utils.utils import (
+    prod, split_contiguous_indices, shift_ranges, ineq_to_tensorisation, reverse_indices
+)
 from ..._utils import cdtype
 
 def projection_nD(
-    objs, original_tensorisation = None, inequalities = None, options=None, _mask = None
+    objs, tensorisation = None, inequalities = None, options=None, _mask = None
 ):
     """
     create a tensorial projection of some n dimensional matrix "objs" tensorised under 
-    "original_tensorisation"  into matrixs "new_objs" projected according to
+    "tensorisation"  into matrixs "new_objs" projected according to
     some inequalities "inequalities"
-    as an example : original_tensorisation can have this 
+    as an example : tensorisation can have this 
     ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2)) and if applied inequalities 
-    [lambda i, j: i <= 2 , lambda i, j: j <= 2]
+    [lambda i, j: i <= 1 , lambda i, j: j <= 1]
     on such a matrix matrix_6x6 = np.arange(1, 37).reshape(6, 6)
     the output would be : 
     matrix_6x6 = np.array([[ 1,  2,  0,  4,  5,  0],
@@ -34,24 +36,25 @@ def projection_nD(
     new_objs = objs
     # if _mask is already known we don't calculate it
     if _mask is None:
-        if original_tensorisation is None or inequalities is None:
+        if tensorisation is None or inequalities is None:
             raise ValueError(" You have to either give a mask or a tensorisation with some inequalities")
-        dictio = dict_nD(original_tensorisation, inequalities, options)
+        dictio = dict_nD(tensorisation, inequalities, options, 'proj')
+
         _mask = mask(new_objs[0], dictio)
     for i in range(len(new_objs)):
         new_objs[i] = jnp.where(_mask, new_objs[i], 0)
 
     return new_objs
 
-def reduction_nD(objs, tensorisation, inequalities):
+def reduction_nD(objs, tensorisation, inequalities, options):
     """
     same as projection_nD but delete lines instead of putting zeros.
     """
     new_objs = []
     # Sort positions in descending order to avoid shifting issues
-    dictio = sorted(dict_nD(tensorisation, inequalities), reverse=True)
+    dictio = sorted(dict_nD(tensorisation, inequalities, options, usage = 'reduce'), reverse=True)
     for i in range(len(objs)):
-        if i ==0:
+        if i ==0: 
             tensorisation = delete_tensor_elements(tensorisation, dictio)
         new_objs.append(delete_matrix_elements(objs[i], dictio))
 
@@ -152,23 +155,30 @@ def extension_nD_old(
     # print(old_tensorisation, tensorisation)
     return new_objs, tensorisation
 
-def dict_nD(tensorisation, inequalities, options=None):
-    # dictio will make us able to repertoriate the indices to suppress
+def dict_nD(tensorisation, inequalities, options = None, usage = None):
+    from .reshapings import check_not_under_truncature, check_in_max_truncature
+    # dictio will make us able to repertoriate the indices concerned by the inequalities
     dictio=[]
     # i compte l'indice sur lequel on se trouve pour l'encodage en machine des positions
     # de la matrice, par exemple (i=0 pour (0,0)) et (i=2 pour (1,0)) dans l'exemple
     # precedent
     for i in range(len(tensorisation)):
         # we check if some inequalities aren't verified, if so we will add the line
-        # in dictio for it to be cut off later
+        # in dictio 
         for inegality in inequalities:
-            if options is not None: # not a very optimized thing...
-                if any(tensorisation[i][j] > options.tensorisation[j] - 1 - 
-                    options.trunc_size[j] for j in range(len(options.tensorisation))
-                ):
-                    dictio.append(i)
-                    break
+            if usage == 'proj' and check_in_max_truncature(tensorisation[i], options): # not a very optimized thing...
+                dictio.append(i)
+                break
             if not inegality(*tuple(tensorisation[i])):
+                if ((usage == 'reduce' and not 
+                    check_not_under_truncature(tensorisation[i], 
+                    [2 * x for x in options.trunc_size]))# 2* because We need L_n-L_{n-k} n>=2*k
+                ):
+                    break
+                elif ((usage == 'proj' and not 
+                    check_not_under_truncature(tensorisation[i], 
+                    options.trunc_size))):
+                    break
                 dictio.append(i)
                 break # to avoid appending the same line multiple times
             
@@ -313,7 +323,7 @@ def unit_test_projection_nD():
     original_tensorisation = ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2))
     inequalities = [lambda i, j: i <= 1, lambda i, j: j <= 1]
     objs = [jnp.arange(1, 37).reshape(6, 6)]
-    options = Options(tensorisation=[100,100], trunc_size=[4,2])
+    options = Options(tensorisation=[100,100], trunc_size=[0,0])
     res = projection_nD(objs, original_tensorisation, inequalities, options)
     expected_result =   [jnp.array([
         [1, 2, 0, 4, 5, 0],
@@ -332,9 +342,20 @@ def unit_test_projection_nD():
        [0, 0, 0, 0, 0, 0],
        [0, 0, 0, 0, 0, 0],
        [0, 0, 0, 0, 0, 0]])]
-    print(res2)
+    options3 = Options(tensorisation=[100,100], trunc_size=[1,3])
+    objs3 = [jnp.arange(1, 37).reshape(6, 6)]# if not put res is also modified next line
+    res3 = projection_nD(objs3, original_tensorisation, inequalities, options3)
+    expected_result3 = [jnp.array([
+       [ 1,  2,  3,  4,  5,  0],
+       [ 7,  8,  9, 10, 11,  0],
+       [13, 14, 15, 16, 17,  0],
+       [19, 20, 21, 22, 23,  0],
+       [25, 26, 27, 28, 29,  0],
+       [ 0,  0,  0,  0,  0,  0]])]
+    print(res, "\n", res2, "\n", res3)
     return (jnp.array_equal(res, expected_result) and
-            jnp.array_equal(res2, expected_result2))
+            jnp.array_equal(res2, expected_result2) and
+            jnp.array_equal(res3, expected_result3))
 
 def unit_test_reduction_nD():
     lazy_tensorisation = [7,5]
@@ -347,25 +368,44 @@ def unit_test_reduction_nD():
     product = prod([a for a in lazy_tensorisation])
     objs = [jnp.arange(0, product**(2)).reshape(product, product)]
     print("objs :", objs[0])
-    temp = reduction_nD(objs, tensorisation, inequalities)
+    trunc_size = [1,1]
+    print("trunc_size:", trunc_size)
+    options = Options(trunc_size=trunc_size)
+    temp = reduction_nD(objs, tensorisation, inequalities, options)
     print("reduction: ", temp)    
-    expected_result =   [jnp.array([[  0,   1,   2,   5,   6,   7,  10,  11,  12,  15,  16,  17],
-                                    [ 35,  36,  37,  40,  41,  42,  45,  46,  47,  50,  51,  52],
-                                    [ 70,  71,  72,  75,  76,  77,  80,  81,  82,  85,  86,  87],
-                                    [175, 176, 177, 180, 181, 182, 185, 186, 187, 190, 191, 192],
-                                    [210, 211, 212, 215, 216, 217, 220, 221, 222, 225, 226, 227],
-                                    [245, 246, 247, 250, 251, 252, 255, 256, 257, 260, 261, 262],
-                                    [350, 351, 352, 355, 356, 357, 360, 361, 362, 365, 366, 367],
-                                    [385, 386, 387, 390, 391, 392, 395, 396, 397, 400, 401, 402],
-                                    [420, 421, 422, 425, 426, 427, 430, 431, 432, 435, 436, 437],
-                                    [525, 526, 527, 530, 531, 532, 535, 536, 537, 540, 541, 542],
-                                    [560, 561, 562, 565, 566, 567, 570, 571, 572, 575, 576, 577],
-                                    [595, 596, 597, 600, 601, 602, 605, 606, 607, 610, 611, 612]])]
-    expected_tensorsiation = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], [2, 1], [2, 2], [3, 0], [3, 1], [3, 2]]
-                                    
+    expected_result =   [
+         jnp.array([[  0,   1,   2,   5,   6,   7,  10,  11,  12,  15,  16,  17],
+                    [ 35,  36,  37,  40,  41,  42,  45,  46,  47,  50,  51,  52],
+                    [ 70,  71,  72,  75,  76,  77,  80,  81,  82,  85,  86,  87],
+                    [175, 176, 177, 180, 181, 182, 185, 186, 187, 190, 191, 192],
+                    [210, 211, 212, 215, 216, 217, 220, 221, 222, 225, 226, 227],
+                    [245, 246, 247, 250, 251, 252, 255, 256, 257, 260, 261, 262],
+                    [350, 351, 352, 355, 356, 357, 360, 361, 362, 365, 366, 367],
+                    [385, 386, 387, 390, 391, 392, 395, 396, 397, 400, 401, 402],
+                    [420, 421, 422, 425, 426, 427, 430, 431, 432, 435, 436, 437],
+                    [525, 526, 527, 530, 531, 532, 535, 536, 537, 540, 541, 542],
+                    [560, 561, 562, 565, 566, 567, 570, 571, 572, 575, 576, 577],
+                    [595, 596, 597, 600, 601, 602, 605, 606, 607, 610, 611, 612]])]
+    expected_tensorsiation = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], 
+                              [2, 1], [2, 2], [3, 0], [3, 1], [3, 2]]
+
+    objs2 = [jnp.arange(0, product**(2)).reshape(product, product)]
+    trunc_size = [2, 2]
+    tensorisation = tensorisation_maker(lazy_tensorisation)
+    options = Options(trunc_size=trunc_size)
+    print("même chose avec trunc_size:", trunc_size)
+    temp2 = reduction_nD(objs2, tensorisation, inequalities, options)
+    print("reduction: ", temp2)  
+    expected_tensorsiation2 = [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], 
+                              [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], 
+                              [3, 2], [3, 3]]
+    expected_result2 = [  0,   1,   2,   3,   5,   6,   7,   8,  10,  11,  12,  13,  15,
+        16,  17,  18] # just the first line
     if (
         jnp.array_equal(temp[0], expected_result) and 
-        jnp.array_equal(temp[1], expected_tensorsiation)):
+        jnp.array_equal(temp[1], expected_tensorsiation) and
+        jnp.array_equal(temp2[0][0][0], expected_result2) and 
+        jnp.array_equal(temp2[1], expected_tensorsiation2)):
         print("working")
         return True
     else:

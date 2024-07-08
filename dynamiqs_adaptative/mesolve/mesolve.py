@@ -142,7 +142,6 @@ def mesolve(
             options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, solver.atol
         )
         print(time.time() - ti0)
-        true_estimator = estimator
         new_tsave = tsave
         L_reshapings = [0]
         old_steps = len(tsave) 
@@ -151,16 +150,18 @@ def mesolve(
         while True: # do while syntax in Python
             mesolve_iteration = _vmap_mesolve(
             H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, options
-            , Hred_mod, Lsred_mod, _mask_mod, true_estimator, dt0
+            , Hred_mod, Lsred_mod, _mask_mod, estimator, dt0
             )
-            (rho_all, estimator_all, L_reshapings, true_estimator, new_tsave, true_time,
+            (rho_all, estimator_all, L_reshapings, estimator, new_tsave, true_time,
             dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
             tensorisation_mod) = mesolve_iteration_prepare(mesolve_iteration, old_steps, 
             tsave, L_reshapings, rho_all, estimator_all, H, jump_ops, options, 
-            H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod)
+            H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod, 
+            solver)
             
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # do while syntax
                 break
+        # put the results in the usual dynamiqs format
         mesolve_result = mesolve_iteration[3].result(
         Saved(put_together_results(rho_all, 2), None, None, 
         put_together_results(estimator_all, 2, True)), None)

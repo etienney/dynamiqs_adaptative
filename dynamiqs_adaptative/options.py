@@ -85,7 +85,7 @@ class Options(eqx.Module):
     inequalities: list | None = None
     estimator_rtol : float | None = 100
     trunc_size: Array | None = None
-    downsizing_rtol : float | None = 100 
+    downsizing_rtol : float | None = 5 
 
 
     def __init__(

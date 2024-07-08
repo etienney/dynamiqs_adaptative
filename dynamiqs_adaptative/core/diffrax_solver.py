@@ -16,9 +16,8 @@ from .abstract_solver import BaseSolver
 from ..options import Options
 
 from .abstract_solver import State
-from ..a_posteriori.utils.mesolve_fcts import check_max_reshaping_reached
 from ..a_posteriori.utils.utils import prod
-
+from..a_posteriori.n_D.reshapings import check_max_reshaping_reached, error_reducing
 
 from .._utils import cdtype
 
@@ -61,20 +60,27 @@ class DiffraxSolver(BaseSolver):
             # a diffrax integration with a reshaping of H, L, rho)
             def condition(state, **kwargs):
                 jax.debug.print("error verif: {a}", a=state.y.err)
-                a = (state.y.err[0]).real >= state.tprev * (# /!\ on a l'estimator ou la version divisée par dt dans state ?
+                erreur_tol = (state.tprev * 
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 )
-                jax.debug.print("activation: {b} and error seuil: {c}, and time: {tprev}", b=a, c =state.tprev * (
-                    self.options.estimator_rtol * (self.solver.atol + 
-                    jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
-                ), tprev = state.tprev)
-                return a
-            if not check_max_reshaping_reached(self.options, self.Hred):
-                event = dx.DiscreteTerminatingEvent(cond_fn=condition)
-            else:
-                event = None
-            # jax.debug.print("self.estimator: {res}", res = self.estimator)
+                not_max = not check_max_reshaping_reached(self.options, self.Hred)
+                extend = jax.lax.cond(((state.y.err[0]).real >= erreur_tol) & 
+                    not_max, lambda: True, lambda: False
+                )
+                error_red = error_reducing(state.y.rho, self.options)
+                reduce = jax.lax.cond(
+                    ((state.y.err[0]).real + error_red <= 
+                    erreur_tol/self.options.downsizing_rtol)
+                    & (len(state.y.rho[0]) > 100), lambda: True, lambda: False # 100 bcs overhead too big to find useful to downsize such little matrices
+                )
+                # jax.debug.print("sooo ?{res}", res = self.terms.vf(state.tprev, state.y, 0).err)
+                jax.debug.print("activation: e:{a} r:{b} and error seuil: {c}, and time: {tprev}"
+                , a=extend, b=reduce, c =erreur_tol, tprev = state.tprev)
+                return extend
+                return jax.lax.cond(extend | reduce, lambda: True, lambda: False)
+            event = dx.DiscreteTerminatingEvent(cond_fn=condition)
+
             # === solve differential equation with diffrax
             solution = dx.diffeqsolve(
                 self.terms,
@@ -110,7 +116,7 @@ class DiffraxSolver(BaseSolver):
         else:
             # give additional infos needed for the reshaping
             # jax.debug.print("fin saved: {res}", res = self)
-            # jax.debug.print("activation: {b}", b=solution.result)
+            # jax.debug.print("activation: {b}", b=solution.event_mask)
             return [self.result(saved, infos=self.infos(solution.stats)), 
                 solution.ts[-1], save_c, self, solution.result,
             ]
