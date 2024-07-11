@@ -115,17 +115,19 @@ def extension_nD(
     old_positions = shift_ranges(new_positions)
     # print("old positions:",old_positions, "new positions:", new_positions, len_new_objs)
     # print(objs)
-    return extension(objs, new_positions, old_positions, len_new_objs), ineq_to_tensors, options
+    zeros_obj = jnp.zeros((len_new_objs, len_new_objs), cdtype())
+    jaxed_extension = jax.jit(lambda objs: extension(objs, new_positions, old_positions, zeros_obj))
+    return jaxed_extension(objs), ineq_to_tensors, options
 
-# @jax.jit
-def extension(objs, new_positions, old_positions, len_new_objs):
+def extension(objs, new_positions, old_positions, zeros_obj):
     """
-    The extension itself.
+    Extends a matrix by putting its values at index from old_positions to new_positions,
+     and filling the rest with zeros
     """
     len_pos = len(old_positions)
     new_objs = []
     for obj in objs:
-        new_obj = jnp.zeros((len_new_objs, len_new_objs), cdtype())
+        new_obj = zeros_obj[:]
         for i in range(len_pos):
             for j in range(len_pos):
                 new_obj = new_obj.at[new_positions[i][0]:new_positions[i][1]+1, 
