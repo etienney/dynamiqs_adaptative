@@ -64,7 +64,10 @@ def red_ext_zeros(objs, tensorisation, inequalities, options):
     # print(tensorisation, ext_tens)
     old_pos, new_pos = find_contiguous_ranges(tensorisation, ext_tens)
     # print(old_pos, new_pos, len(ext_tens), jnp.array(new_objs).shape)
-    ext = extension(new_objs, new_pos, old_pos, len(ext_tens))
+    len_new_objs = len(ext_tens)
+    zeros_obj = jnp.zeros((len_new_objs, len_new_objs), cdtype())
+    jaxed_extension = jax.jit(lambda objs: extension(objs, new_pos, old_pos, zeros_obj))
+    ext = jaxed_extension(new_objs)
     return ext, ext_tens
 
 def red_ext_full(objs, tensorisation, inequalities, options):
