@@ -77,7 +77,7 @@ class DiffraxSolver(BaseSolver):
                 # jax.debug.print("sooo ?{res}", res = self.terms.vf(state.tprev, state.y, 0).err)
                 jax.debug.print("activation: e:{a} r:{b} and error seuil: {c}, and time: {tprev}"
                 , a=extend, b=reduce, c =erreur_tol, tprev = state.tprev)
-                return extend
+                # return extend
                 return jax.lax.cond(extend | reduce, lambda: True, lambda: False)
             event = dx.DiscreteTerminatingEvent(cond_fn=condition)
 
@@ -139,7 +139,7 @@ class FixedSolver(DiffraxSolver):
             return f'{self.nsteps} steps'
 
     stepsize_controller: dx.AbstractStepSizeController = dx.ConstantStepSize()
-    max_steps: int = 8192  # TODO: fix hard-coded max_steps
+    max_steps: int = 300  # TODO: fix hard-coded max_steps
 
     @property
     def dt0(self) -> float:

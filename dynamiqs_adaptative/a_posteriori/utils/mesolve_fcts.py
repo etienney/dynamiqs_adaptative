@@ -57,21 +57,26 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
                 # for the 2 see [the article]
                 # We setup the results in options
                 tmp_dic['trunc_size'] = [2 * x.item() for x in jnp.array(trunc_size)]
-        inequalities = generate_rec_ineqs(
-            [(a - 1) - b for a, b in zip(lazy_tensorisation, options.trunc_size)]
-        )# -1 since list indexing strats at 0
-        tmp_dic['inequalities'] = [
-        [None, (a - 1) - b] for a, b in zip(lazy_tensorisation, options.trunc_size)
-        ]
         tensorisation = tensorisation_maker(lazy_tensorisation)
-        _mask = mask(H0, dict_nD(tensorisation, inequalities, options))
-        Hred, *Lsred = projection_nD(
-            [H0] + list(L0), tensorisation, inequalities, options, _mask
-        )
+        if not options.reshaping:
+            ineq_params = [(a - 1) - b for a, b in 
+                zip(lazy_tensorisation, options.trunc_size)
+            ]
+            # -1 since list indexing strats at 0
+            inequalities = generate_rec_ineqs(ineq_params)
+            tmp_dic['inequalities'] = [
+            [inequalities[i], ineq_params[i]] for i in range(len(lazy_tensorisation))
+            ]
+            _mask = mask(H0, dict_nD(tensorisation, inequalities, options, 'proj'))
+            Hred, *Lsred = projection_nD(
+                [H0] + list(L0), tensorisation, inequalities, options, _mask
+            )
+            # reconvert to Timearray args
+            Hred = _astimearray(Hred)
+            Lsred = [_astimearray(L) for L in Lsred]
+        else:
+            Hred, Lsred, _mask, inequalities = None, None, None, None
         options = Options(**tmp_dic)
-        # reconvert to Timearray args
-        Hred = _astimearray(Hred)
-        Lsred = [_astimearray(L) for L in Lsred]
     else:
         # setup empty values
         options, Hred, Lsred, _mask, inequalities, tensorisation = options, None, None, 0, 0, 0
@@ -99,7 +104,7 @@ def mesolve_warning(solution, options, solver):
 
 def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings, rho_all
     , estimator_all, H, jump_ops, options, H_mod, jump_ops_mod, Hred_mod, 
-    Lsred_mod, _mask_mod, tensorisation_mod, solver):
+    Lsred_mod, _mask_mod, tensorisation_mod, solver, ineq_set):
     true_time = mesolve_iteration[1][jnp.isfinite(mesolve_iteration[1])]
     true_steps = len(true_time)
     last_state_index = max(0,true_steps - 2)
@@ -116,6 +121,7 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     estimator_erreur = mesolve_iteration[2].err[last_state_index + 1]
     rho_all.append(mesolve_iteration[2].rho[:true_steps])
     estimator_all.append(mesolve_iteration[2].err[:true_steps])
+
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
         print("""WARNING: your space wasn't large enough to capture the dynamic up to
@@ -131,17 +137,19 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
         if ((estimator_erreur).real + error_reducing(rho_erreur, options) <= 
             erreur_tol/options.downsizing_rtol
             and len(rho_erreur) > 100): # 100 bcs overhead too big to find useful to downsize such little matrices :
+            print("eeeeeee")
             L_reshapings.append(-1)
         print("error seuil en dehors", erreur_tol, estimator_erreur)
     else:
         L_reshapings.append(0)
     # print("estimator all qui charge:", estimator_all)
+
     if (L_reshapings[-1]==1
     ):# and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
         te0 = time.time()
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod) = (reshaping_extend(options, H, jump_ops, rho_mod,
-        tensorisation_mod, true_time)
+        tensorisation_mod, true_time[-2], ineq_set)
         )
         print("temps du reshaping: ", time.time() - te0)
         Lsred_mod_eval = jnp.stack([L(0) for L in Lsred_mod])
@@ -151,12 +159,13 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
         drho = tmp + dag(tmp)
         print("estimator calculé:", estimator_derivate_opti_nD(drho, H_mod(0), 
         jnp.stack([L(0) for L in jump_ops_mod]), rho_mod))
-    # elif (L_reshapings[-1]==-1
-    # ):
-    #     (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-    #     tensorisation_mod) = (
-    #         reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation_mod, tsave)
-    #     )
+    elif (L_reshapings[-1]==-1
+    ):
+        (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+        tensorisation_mod) = (
+            reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation_mod, 
+            true_time[-2], ineq_set)
+        )
     print("estimator:", estimator,"time: ", true_time)
     print("L_reshapings:", L_reshapings)
     # print("Ls", [jump_ops_mod[0](0)[i][i].item() for i in range(len(jump_ops_mod[0](0)[0]))], "\n", [Lsred_mod[0](0)[i][i].item() for i in range(len(Lsred_mod[0](0)[0]))], "\nrho", [rho_mod[i][i].item() for i in range(len(rho_mod[0]))], "\n mask", _mask_mod[0], "\ntensor", tensorisation_mod, "\nest", true_estimator)

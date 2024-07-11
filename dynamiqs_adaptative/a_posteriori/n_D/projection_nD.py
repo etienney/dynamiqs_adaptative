@@ -1,15 +1,17 @@
 import jax.numpy as jnp
 import itertools
 from .tensorisation_maker import tensorisation_maker
-from .inequalities import generate_rec_ineqs
+from .inequalities import generate_rec_ineqs, update_ineq
 from ...options import Options
 import math
 from ..utils.utils import (
     prod, split_contiguous_indices, shift_ranges, ineq_to_tensorisation, 
     reverse_indices, generate_square_indices_around, eliminate_duplicates, to_hashable,
-    cut_over_max_tensorisation
+    cut_over_max_tensorisation, find_contiguous_ranges, add_trunc_size_vectors,
+    excluded_numbers
 )
 from ..._utils import cdtype
+import copy
 
 def projection_nD(
     objs, tensorisation = None, inequalities = None, options=None, _mask = None
@@ -48,22 +50,44 @@ def projection_nD(
 
     return new_objs
 
-def reduction_nD(objs, tensorisation, inequalities, options):
-    """
-    same as projection_nD but delete lines instead of putting zeros.
-    """
+def red_ext_zeros(objs, tensorisation, inequalities, options):
     new_objs = []
     # Sort positions in descending order to avoid shifting issues
-    dictio = sorted(dict_nD(tensorisation, inequalities, options, usage = 'reduce'), reverse=True)
+    dictio = sorted(dict_nD(tensorisation, inequalities, options), reverse=True)
+    tensorisation = delete_tensor_elements(tensorisation, dictio)
+    tensorisation = list(to_hashable(tensorisation))
     for i in range(len(objs)):
-        if i ==0: 
-            tensorisation = delete_tensor_elements(tensorisation, dictio)
-        new_objs.append(delete_matrix_elements(objs[i], dictio))
+        new_objs.append(reduction_nD(objs[i], dictio))
+    # print(tensorisation)
+    ext_tens = extended_tensorisation(None, options, tensorisation)
+    # print(tensorisation, ext_tens)
+    old_pos, new_pos = find_contiguous_ranges(tensorisation, ext_tens)
+    # print(old_pos, new_pos, len(ext_tens), jnp.array(new_objs).shape)
+    ext = extension(new_objs, new_pos, old_pos, len(ext_tens))
+    return ext, ext_tens
 
-    return new_objs, tensorisation
+def red_ext_full(objs, tensorisation, inequalities, options):
+    # Sort positions in descending order to avoid shifting issues
+    dictio = sorted(dict_nD(tensorisation, inequalities, options), reverse=True)
+    tensorisation = delete_tensor_elements(tensorisation, dictio)
+    tensorisation = list(to_hashable(tensorisation))
+    # print(tensorisation)
+    ext_tens = extended_tensorisation(None, options, tensorisation)
+    maximum_tensorisation = list(itertools.product(*[range(max_dim) 
+        for max_dim in options.tensorisation]))
+    _, ranges_to_keep = find_contiguous_ranges(ext_tens, maximum_tensorisation
+    )
+    # print(ext_tens, maximum_tensorisation)
+    # print(ranges_to_keep)
+    new_objs = []
+    for i in range(len(objs)):
+        max_size = len(objs[i])
+        dict_to_delete = excluded_numbers(ranges_to_keep, max_size)
+        new_objs.append(reduction_nD(objs[i], dict_to_delete))
+    return new_objs, ext_tens
 
 def extension_nD(
-        objs, options
+        objs, options, inequalities
 ):
     """
     Extend the objs up to the max_tensorisation by putting zeros cols and rows in spots
@@ -73,23 +97,24 @@ def extension_nD(
     Args:
     objs: list of input matrices (JAX arrays)
     options: see options[lien]
+    inequalities: the new inequalities we need to expand to
+    tensorisation: optional tensorisation to put if we cannot guess it from the 
+    inequalities
 
     Returns:
     objs: list of matrices with zeros placed.
     """
-    full_ineq_params = [x[1] + b for x, b in zip(options.inequalities, options.trunc_size)]
-    full_inequalities = generate_rec_ineqs(full_ineq_params)
-    # print("ineq:", full_ineq_params, "extended ineq:", extended_ineq_params)
-    # ineq_to_tensors = ineq_to_tensorisation(extended_inequalities, max_tensorisation)
-    # print("tensorisation:", ineq_to_tensors)
-    ineq_to_tensors = extended_tensorisation(full_inequalities, options)
+    ineq_to_tensors = extended_tensorisation(inequalities, options)
     # print("tensorisation aprés:", ineq_to_tensors)
     len_new_objs = len(ineq_to_tensors)
-    reverse_dictio = reverse_indices(dict_nD(ineq_to_tensors, full_inequalities), len_new_objs - 1)
+    reverse_dictio = reverse_indices(dict_nD(ineq_to_tensors, inequalities, 
+        options), len_new_objs - 1
+    )
     new_positions = split_contiguous_indices(reverse_dictio)
     old_positions = shift_ranges(new_positions)
-    # print("old positions:",old_positions, "new positions:", new_positions)
-    return extension(objs, new_positions, old_positions, len_new_objs), ineq_to_tensors
+    # print("old positions:",old_positions, "new positions:", new_positions, len_new_objs)
+    # print(objs)
+    return extension(objs, new_positions, old_positions, len_new_objs), ineq_to_tensors, options
 
 def extension(objs, new_positions, old_positions, len_new_objs):
     """
@@ -108,7 +133,6 @@ def extension(objs, new_positions, old_positions, len_new_objs):
                 )
         new_objs.append(new_obj)
     return new_objs
-
 
 def extension_nD_old(
     objs, old_tensorisation, max_tensorisation, inequalities, options, bypass = False
@@ -170,44 +194,40 @@ def dict_nD(tensorisation, inequalities, options = None, usage = None):
         # we check if some inequalities aren't verified, if so we will add the line
         # in dictio 
         for inegality in inequalities:
-            if usage == 'proj' and check_in_max_truncature(tensorisation[i], options): # not a very optimized thing...
+            if ((usage == 'proj' or usage == 'reduce') and 
+                check_in_max_truncature(tensorisation[i], options)
+            ): # not a very optimized thing...
                 dictio.append(i)
                 break
             if not inegality(*tuple(tensorisation[i])):
-                if ((usage == 'reduce' and not 
-                    check_not_under_truncature(tensorisation[i], 
-                    [2 * x for x in options.trunc_size]))# 2* because We need L_n-L_{n-k} n>=2*k
-                ):
-                    break
-                elif ((usage == 'proj' and not 
-                    check_not_under_truncature(tensorisation[i], 
-                    options.trunc_size))):
-                    break
+                if options is not None:
+                    if ((#(usage == 'proj' or usage == 'reduce') and 
+                        not check_not_under_truncature(tensorisation[i], 
+                        options.trunc_size))# 2* because We need L_n-L_{n-k} n>=2*k
+                    ):
+                        break
                 dictio.append(i)
                 break # to avoid appending the same line multiple times
-            
     return dictio
 
-def mask(obj, dict):
+def mask(obj, pos):
     """
-    Put zeros on the line and column of a matrix "obj" by reference to a position "pos".
-    Zeros are placed in a contiguous streak.
+    Prepare positions in a matrix of size obj where we want to act through a mask
 
     Args:
     obj: input matrix.
     pos: position where zeros should be placed.
 
     Returns:
-    obj: matrix with zeros placed in a contiguous streak.
+    mask: Boolean matrix where False indicates where we will act (putting zeros when
+    projecting for instance)
     """
     # Create a mask for the positions to zero out
     mask = jnp.ones_like(obj, dtype=bool)
-    for x in dict:
+    for x in pos:
         mask = jnp.where(jnp.arange(obj.shape[0])[:, None] == x, False, mask)  # Zero out row
         mask = jnp.where(jnp.arange(obj.shape[1])[None, :] == x, False, mask)  # Zero out column
-
     return mask
-
 
 def add_zeros_line(matrix, k):
     """
@@ -307,25 +327,29 @@ def delete_tensor_elements(obj, positions):
         del obj[pos]
     return obj
 
-def delete_matrix_elements(obj, positions):
+def reduction_nD(obj, positions):
+    """
+    same as projection_nD but delete lines instead of putting zeros.
+    """
     # Convert positions to a numpy array for indexing
     positions = jnp.array(positions)
-    
     # Create masks to keep track of rows and columns to keep
     mask = jnp.ones(obj.shape[0], dtype=bool)
     if positions.size!=0:
         mask = mask.at[positions].set(False)
-    
-    # Apply masks to delete rows and columns
-    obj = obj[mask][:, mask]
-    return obj
+    return obj[mask][:, mask]
 
-def extended_tensorisation(new_ineq, options):
+def extended_tensorisation(new_ineq, options, tensorisation = None):
     # complexity n*k^2
-    ineq_to_tensors = ineq_to_tensorisation(new_ineq, options.tensorisation)
+    if tensorisation is None:
+        new_tensorisation = add_trunc_size_vectors(ineq_to_tensorisation(new_ineq, 
+            options.tensorisation), options.trunc_size
+        )
+    else:
+        new_tensorisation = tensorisation[:] # copy needed to not modify tensorisation
     L=[]
     len_trunc_size = len(options.trunc_size)
-    for tensor in ineq_to_tensors:
+    for tensor in new_tensorisation:
         if any((tensor[i]==0 for i in range(len_trunc_size))):
             for new_tensor in (generate_square_indices_around(tensor, 
                 options.trunc_size)):
@@ -337,13 +361,12 @@ def extended_tensorisation(new_ineq, options):
             L.append(tensor_enlarged_for_truncature)
     L = to_hashable(cut_over_max_tensorisation(L, [x- 1 for x in 
         options.tensorisation])
-    ) # because tensorisation starts at 0
+    ) # because new_tensorisation starts at 0
     for tensor in L:
-        if tensor not in ineq_to_tensors:
-            ineq_to_tensors.append(tensor)
-    ineq_to_tensors = sorted(eliminate_duplicates(ineq_to_tensors))
-    return ineq_to_tensors
-
+        if tensor not in new_tensorisation:
+            new_tensorisation.append(tensor)
+    new_tensorisation = sorted(eliminate_duplicates(new_tensorisation))
+    return new_tensorisation
 
 def unit_test_projection_nD():
     original_tensorisation = ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2))
@@ -384,59 +407,113 @@ def unit_test_projection_nD():
             jnp.array_equal(res3, expected_result3))
 
 def unit_test_reduction_nD():
-    lazy_tensorisation = [7,5]
-    tensorisation = tensorisation_maker(lazy_tensorisation)
-    # print(tensorisation)
-    inequalities = generate_rec_ineqs(
-        [(x+1)//2 - 1 for x in lazy_tensorisation]
-    ) # /!\ +1 since lazy_tensorisation start counting at 0
-    print("square ineq: ", [(x+1)//2 - 1 for x in lazy_tensorisation])
-    product = prod([a for a in lazy_tensorisation])
-    objs = [jnp.arange(0, product**(2)).reshape(product, product)]
-    print("objs :", objs[0])
+    def run_reduction_zeros(actual, cut, trunc_size, max_tensorisation):
+        tensorisation = tensorisation_maker(actual)
+        # print(tensorisation)
+        ineq_params =  [x for x in cut]
+        # /!\ -1 since lazy_tensorisation start counting at 0
+        inequalities = generate_rec_ineqs(ineq_params)
+        print("square ineq: ", ineq_params)
+        product = prod([a for a in actual])
+        objs = [jnp.arange(0, product**(2)).reshape(product, product)]
+        print("objs :", objs[0][0])
+        print("trunc_size:", trunc_size)
+        up = trunc_size
+        down = trunc_size
+        options = Options(trunc_size=trunc_size, 
+            inequalities = [[None, ineq_params[i], up[i], down[i]] 
+            for i in range(len(max_tensorisation))],
+            tensorisation = max_tensorisation
+        )
+        temp = red_ext_zeros(objs, tensorisation, inequalities, options)
+        return temp
+    
+    def run_reduction_full(actual, cut, trunc_size, max_tensorisation):
+        tensorisation = tensorisation_maker(actual)
+        # print(tensorisation)
+        ineq_params =  [x for x in cut]
+        # /!\ -1 since lazy_tensorisation start counting at 0
+        inequalities = generate_rec_ineqs(ineq_params)
+        print("square ineq: ", ineq_params)
+        product = prod([a for a in max_tensorisation])
+        objs = [jnp.arange(0, product**(2)).reshape(product, product)]
+        print("objs :", objs[0][0])
+        print("trunc_size:", trunc_size)
+        up = trunc_size
+        down = trunc_size
+        options = Options(trunc_size=trunc_size, 
+            inequalities = [[None, ineq_params[i], up[i], down[i]] 
+            for i in range(len(max_tensorisation))],
+            tensorisation = max_tensorisation
+        )
+        temp = red_ext_full(objs, tensorisation, inequalities, options)
+        return temp
+    
+    # standard test
+    actual = [7,8]
+    cut = [5,4]
     trunc_size = [1,1]
-    print("trunc_size:", trunc_size)
-    options = Options(trunc_size=trunc_size)
-    temp = reduction_nD(objs, tensorisation, inequalities, options)
-    print("reduction: ", temp)    
-    expected_result =   [
-         jnp.array([[  0,   1,   2,   5,   6,   7,  10,  11,  12,  15,  16,  17],
-                    [ 35,  36,  37,  40,  41,  42,  45,  46,  47,  50,  51,  52],
-                    [ 70,  71,  72,  75,  76,  77,  80,  81,  82,  85,  86,  87],
-                    [175, 176, 177, 180, 181, 182, 185, 186, 187, 190, 191, 192],
-                    [210, 211, 212, 215, 216, 217, 220, 221, 222, 225, 226, 227],
-                    [245, 246, 247, 250, 251, 252, 255, 256, 257, 260, 261, 262],
-                    [350, 351, 352, 355, 356, 357, 360, 361, 362, 365, 366, 367],
-                    [385, 386, 387, 390, 391, 392, 395, 396, 397, 400, 401, 402],
-                    [420, 421, 422, 425, 426, 427, 430, 431, 432, 435, 436, 437],
-                    [525, 526, 527, 530, 531, 532, 535, 536, 537, 540, 541, 542],
-                    [560, 561, 562, 565, 566, 567, 570, 571, 572, 575, 576, 577],
-                    [595, 596, 597, 600, 601, 602, 605, 606, 607, 610, 611, 612]])]
-    expected_tensorsiation = [[0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2], [2, 0], 
-                              [2, 1], [2, 2], [3, 0], [3, 1], [3, 2]]
+    max_tensorisation = [15, 15]
+    test_2D = run_reduction_zeros(actual, cut, trunc_size, max_tensorisation)
+    print("reduction: ", test_2D[0][0][0], "\ntensorisation:", test_2D[1])  
+    # standard test but with a reduction that doesn't put zero (but the obj of max_size)
+    actual = [7,8]
+    cut = [5,4]
+    trunc_size = [1,1]
+    max_tensorisation = [15, 15]
+    test_2D_full = run_reduction_full(actual, cut, trunc_size, max_tensorisation)
+    print("reduction: ", test_2D_full[0][0][0], "\ntensorisation:", test_2D_full[1]) 
+    # test to see if we don't cut under trunc_size
+    actual = [9,9]
+    cut = [6,2]
+    trunc_size = [4,4] # the 2nd index is cut
+    max_tensorisation = [30, 30]
+    test_2D_trunc = run_reduction_zeros(actual, cut, trunc_size, max_tensorisation)
+    print("reduction: ", test_2D_trunc[0][0][0], "\ntensorisation:", test_2D_trunc[1])   
+    print("same len:", len(test_2D_trunc[0][0][0]), len(test_2D_trunc[1]))
 
-    objs2 = [jnp.arange(0, product**(2)).reshape(product, product)]
-    trunc_size = [2, 2]
-    tensorisation = tensorisation_maker(lazy_tensorisation)
-    options = Options(trunc_size=trunc_size)
-    print("même chose avec trunc_size:", trunc_size)
-    temp2 = reduction_nD(objs2, tensorisation, inequalities, options)
-    print("reduction: ", temp2)  
-    expected_tensorsiation2 = [[0, 0], [0, 1], [0, 2], [0, 3], [1, 0], [1, 1], [1, 2], 
-                              [1, 3], [2, 0], [2, 1], [2, 2], [2, 3], [3, 0], [3, 1], 
-                              [3, 2], [3, 3]]
-    expected_result2 = [  0,   1,   2,   3,   5,   6,   7,   8,  10,  11,  12,  13,  15,
-        16,  17,  18] # just the first line
-    if (
-        jnp.array_equal(temp[0], expected_result) and 
-        jnp.array_equal(temp[1], expected_tensorsiation) and
-        jnp.array_equal(temp2[0][0][0], expected_result2) and 
-        jnp.array_equal(temp2[1], expected_tensorsiation2)):
-        print("working")
-        return True
-    else:
-        print("not working")
-        return False
+      
+    expected_result_2D =  [0, 1, 2, 3, 4, 0, 8, 9, 10, 11, 12, 0, 16, 17, 18, 19, 20, 0, 
+        24, 25, 26, 27, 28, 0, 32, 33, 34, 35, 36, 0, 40, 41, 42, 43, 44, 0, 0, 0, 0, 0,
+        0, 0]
+    expected_tensorsiation_2D = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (1, 0), 
+        (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), 
+        (2, 5), (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (4, 0), (4, 1), (4, 2), 
+        (4, 3), (4, 4), (4, 5), (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), (6, 0), 
+        (6, 1), (6, 2), (6, 3), (6, 4), (6, 5)]
+
+    expected_result_2D_full = [0,1,2,3,4,5,15,16,17,18,19,20,30,31,32,33,34,35,45,46,47,
+        48,49,50,60,61,62,63,64,65,75,76,77,78,79,80,90,91,92,93,94,95]
+    expected_tensorsiation_2D_full = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), 
+        (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (2, 0), (2, 1), (2, 2), (2, 3), 
+        (2, 4), (2, 5), (3, 0), (3, 1), (3, 2), (3, 3), (3, 4), (3, 5), (4, 0), (4, 1), 
+        (4, 2), (4, 3), (4, 4), (4, 5), (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), 
+        (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5)]
+    
+    expected_result_2D_trunc = [0, 1, 2, 3, 0, 0, 0, 0, 9, 10, 11, 12, 0, 0, 0, 0, 18, 
+        19, 20, 21, 0, 0, 0, 0, 27, 28, 29, 30, 0, 0, 0, 0, 36, 37, 38, 0, 0, 0, 0, 0, 
+        45, 46, 47, 0, 0, 0, 0, 0, 54, 55, 56, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    expected_tensorsiation_2D_trunc = [(0, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), 
+        (0, 6), (0, 7), (1, 0), (1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7), 
+        (2, 0), (2, 1), (2, 2), (2, 3), (2, 4), (2, 5), (2, 6), (2, 7), (3, 0), (3, 1), 
+        (3, 2), (3, 3), (3, 4), (3, 5), (3, 6), (3, 7), (4, 0), (4, 1), (4, 2), (4, 3), 
+        (4, 4), (4, 5), (4, 6), (4, 7), (5, 0), (5, 1), (5, 2), (5, 3), (5, 4), (5, 5), 
+        (5, 6), (5, 7), (6, 0), (6, 1), (6, 2), (6, 3), (6, 4), (6, 5), (6, 6), (6, 7), 
+        (7, 0), (7, 1), (7, 2), (7, 3), (7, 4), (7, 5), (7, 6), (7, 7), (8, 0), (8, 1), 
+        (8, 2), (8, 3), (8, 4), (8, 5), (8, 6), (9, 0), (9, 1), (9, 2), (9, 3), (9, 4), 
+        (9, 5), (9, 6), (10, 0), (10, 1), (10, 2), (10, 3), (10, 4), (10, 5), (10, 6)]
+
+    working = [
+        jnp.array_equal(test_2D[0][0][0], expected_result_2D) , 
+        jnp.array_equal(test_2D[1], expected_tensorsiation_2D) ,
+        jnp.array_equal(test_2D_trunc[0][0][0], expected_result_2D_trunc) , 
+        jnp.array_equal(test_2D_trunc[1], expected_tensorsiation_2D_trunc) , 
+        jnp.array_equal(test_2D_full[0][0][0], expected_result_2D_full) , 
+        jnp.array_equal(test_2D_full[1], expected_tensorsiation_2D_full)
+    ]
+    print(working)
+    return all(working)
 
 def unit_test_extension_nD_old():
     lazy_tensorisation = [2,5]
@@ -464,13 +541,26 @@ def unit_test_extension_nD_old():
 
 def unit_test_extension_nD():
     def run_test(lazy_tensorisation, max_lazy_tensorisation, trunc_size):
-        ineqs_params = [[None, x - 1 - trunc_size[i]] for x, i in zip(lazy_tensorisation, range(len(lazy_tensorisation)))] # -1 because tensorisation starts at 0
+        ineqs_params = [ x - 1 - trunc_size[i] for x, i in 
+            zip(lazy_tensorisation, range(len(lazy_tensorisation)))
+        ] # -1 because tensorisation starts at 0
+        full_ineq_params = [x + b for x, b in zip(ineqs_params, 
+            trunc_size)
+        ]
+        full_inequalities = generate_rec_ineqs(full_ineq_params)
         print("square ineq: ", ineqs_params)
-        options = Options(tensorisation=max_lazy_tensorisation, trunc_size=trunc_size, inequalities=ineqs_params)
+        up = trunc_size
+        down= trunc_size
+        options = Options(tensorisation=max_lazy_tensorisation, trunc_size=trunc_size, 
+            inequalities = [[None, full_ineq_params[i], up[i], down[i]] 
+            for i in range(len(lazy_tensorisation))]
+        )
         product = prod([a for a in lazy_tensorisation])
         objs = [jnp.arange(0, product**2).reshape(product, product)]
-        print("tensorisation init:", tensorisation_maker(lazy_tensorisation), "\nobj initial:", objs[0], "\nfirst line:", objs[0][0])
-        temp = extension_nD(objs, options)
+        print("tensorisation init:", tensorisation_maker(lazy_tensorisation), 
+            "\nobj initial:", objs[0], "\nfirst line:", objs[0][0]
+        )
+        temp = extension_nD(objs, options, full_inequalities)
         return temp
     lazy_tensorisation_2D = [7,4]
     max_lazy_tensorisation_2D = [100,100]
@@ -482,6 +572,7 @@ def unit_test_extension_nD():
     max_lazy_tensorisation_1D_short = [8]
     ext_2D = run_test(lazy_tensorisation_2D, max_lazy_tensorisation_2D, trunc_size_2D)
     ext_1D = run_test(lazy_tensorisation_1D, max_lazy_tensorisation_1D, trunc_size_1D)
+    # a test when we extend bu we are stopped by the boundary of the max_tensorisation
     ext_2D_max = run_test(lazy_tensorisation_2D, max_lazy_tensorisation_2D_short, 
         trunc_size_2D
     )

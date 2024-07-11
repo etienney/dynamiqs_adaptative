@@ -138,8 +138,11 @@ def mesolve(
     if options.estimator and options.tensorisation is not None and options.reshaping:
         # a first reshaping to reduce 
         ti0 = time.time()
-        options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation_mod = reshaping_init(
-            options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, solver.atol
+        (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+        tensorisation_mod, ineq_set
+        ) = reshaping_init(
+            options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, 
+            solver.atol
         )
         print(time.time() - ti0)
         new_tsave = tsave
@@ -157,7 +160,7 @@ def mesolve(
             tensorisation_mod) = mesolve_iteration_prepare(mesolve_iteration, old_steps, 
             tsave, L_reshapings, rho_all, estimator_all, H, jump_ops, options, 
             H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod, 
-            solver)
+            solver, ineq_set)
             
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # do while syntax
                 break

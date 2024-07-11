@@ -84,6 +84,25 @@ def shift_ranges(ranges):
         start = new_end + 1
     return new_ranges
 
+def find_contiguous_ranges(list1, expanded_list):
+    result1 = []
+    result2 = []
+    n1, n2 = len(list1), len(expanded_list)
+    i1 = 0
+    i2 = 0
+    while i1 < n1 and i2 < n2:
+        if list1[i1] == expanded_list[i2]:
+            start_idx1 = i1
+            start_idx2 = i2
+            while i1 < n1 and i2 < n2 and list1[i1] == expanded_list[i2]:
+                i1 += 1
+                i2 += 1
+            result1.append((start_idx1, i1-1))
+            result2.append((start_idx2, i2-1))
+        else:
+            i2 += 1
+    return result1, result2
+
 def reverse_indices(L, x):
     """
     Put the indices not in L up to x.
@@ -98,16 +117,21 @@ def ineq_to_tensorisation(old_inequalities, max_tensorisation):
     """
     Transform the inequalities into a tensorisation up to max_tensorisation
     """
-    old_tensorisation = []
+    tensorisation = []
     # Iterate over all possible indices within max_tensorisation
     indices = [range(max_dim) for max_dim in max_tensorisation]
-    index = 0
     for tensor in itertools.product(*indices):
         # Check if the conditions are satisfied
         if all(ineq(*tensor) for ineq in old_inequalities):
-            old_tensorisation.append(tensor)
-    return old_tensorisation
+            tensorisation.append(tensor)
+    return tensorisation
 
+def add_trunc_size_vectors(tensorisation, trunc_size):
+    indices = [range(max_dim) for max_dim in trunc_size]
+    for tensor in itertools.product(*indices):
+            tensorisation.append(tensor)
+    return sorted(eliminate_duplicates(tensorisation))
+                  
 def put_together_results(L, k, estimator = False):
     """
     The reshaping outputs some [0, 0.1, 0.2, 0.3, 0.4], [0.3, 0.4, 0.5, ...,  1.0] for a 
@@ -153,3 +177,10 @@ def eliminate_duplicates(lists):
             seen.add(t)
             unique_lists.append(lst)
     return unique_lists
+
+def excluded_numbers(ranges, max_index):
+    excluded_set = set()
+    for start, end in ranges:
+        for i in range(start, end + 1):
+            excluded_set.add(i)
+    return [num for num in range(max_index) if num not in excluded_set]
