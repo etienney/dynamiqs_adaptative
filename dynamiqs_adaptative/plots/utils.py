@@ -13,7 +13,7 @@ from matplotlib.axes import Axes
 from matplotlib.axis import Axis
 from matplotlib.colors import Normalize
 from matplotlib.figure import Figure
-from matplotlib.ticker import FixedLocator, MultipleLocator, NullLocator
+from matplotlib.ticker import FixedLocator, MaxNLocator, MultipleLocator, NullLocator
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 __all__ = ['gridplot', 'mplstyle']
@@ -90,15 +90,15 @@ def gridplot(
     Warning:
         Documentation redaction in progress.
 
-    Notes:
+    Note:
         This method is a shortcut to Matplotlib
         [`plt.subplots()`](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplots.html#matplotlib.pyplot.subplots).
 
     Examples:
         For example, to plot six different curves:
 
-        >>> x = np.linspace(0, 1, 101)
-        >>> ys = [np.sin(f * 2 * np.pi * x) for f in range(6)]  # (6, 101)
+        >>> x = jnp.linspace(0, 1, 101)
+        >>> ys = [jnp.sin(f * 2 * jnp.pi * x) for f in range(6)]  # (6, 101)
 
         Replace the usual Matplotlib code
 
@@ -118,7 +118,7 @@ def gridplot(
         [...]
         >>> renderfig('gridplot')
 
-        ![gridplot](/figs-code/gridplot.png){.fig}
+        ![gridplot](/figs_code/gridplot.png){.fig}
     """
     h = w if h is None else h
     ncols = ceil(n / nrows)
@@ -155,8 +155,8 @@ def mplstyle(*, usetex: bool = False):
         Documentation redaction in progress.
 
     Examples:
-        >>> x = np.linspace(0, 2 * np.pi, 101)
-        >>> ys = [np.sin(x), np.sin(2 * x), np.sin(3 * x)]
+        >>> x = jnp.linspace(0, 2 * jnp.pi, 101)
+        >>> ys = [jnp.sin(x), jnp.sin(2 * x), jnp.sin(3 * x)]
         >>> default_mpl_style()
 
         Before (default Matplotlib style):
@@ -169,7 +169,7 @@ def mplstyle(*, usetex: bool = False):
         [...]
         >>> renderfig('mplstyle_before')
 
-        ![mplstyle_before](/figs-code/mplstyle_before.png){.fig}
+        ![mplstyle_before](/figs_code/mplstyle_before.png){.fig}
 
         After (dynamiqs Matplotlib style):
 
@@ -182,7 +182,7 @@ def mplstyle(*, usetex: bool = False):
         [...]
         >>> renderfig('mplstyle_after')
 
-        ![mplstyle_after](/figs-code/mplstyle_after.png){.fig}
+        ![mplstyle_after](/figs_code/mplstyle_after.png){.fig}
     """
     plt.rcParams.update(
         {
@@ -241,7 +241,7 @@ def integer_ticks(axis: Axis, n: int, all: bool = True):  # noqa: A002
         minorticks_off(axis)
     else:
         # let maptlotlib choose major ticks location but restrict to integers
-        axis.get_major_locator().set_params(integer=True)
+        axis.set_major_locator(MaxNLocator(integer=True))
         # fix minor ticks to integer locations only
         axis.set_minor_locator(MultipleLocator(1))
 

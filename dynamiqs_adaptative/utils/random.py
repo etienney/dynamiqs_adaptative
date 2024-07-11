@@ -49,7 +49,7 @@ def rand_complex(
     Each element of the returned array is sampled uniformly in the disk of radius
     $\text{rmax}$.
 
-    Notes-: Uniform sampling in the complex plane
+    Note-: Uniform sampling in the complex plane
         Here are three common options to generate random complex numbers,
         `dq.rand_complex()` returns the last one:
 
@@ -64,7 +64,7 @@ def rand_complex(
         ax0.scatter(x.real, x.imag, s=1.0)
 
         # option 2: uniformly distributed magnitude and phase
-        x = np.random.rand(n) * np.exp(1j * 2 * np.pi * np.random.rand(n))
+        x = np.random.rand(n) * jnp.exp(1j * 2 * jnp.pi * np.random.rand(n))
         ax1.scatter(x.real, x.imag, s=1.0)
 
         # option 3: uniformly distributed in a disk (in dynamiqs)
@@ -74,7 +74,7 @@ def rand_complex(
         renderfig('rand_complex')
         ```
 
-        ![rand_complex](/figs-code/rand_complex.png){.fig}
+        ![rand_complex](/figs_code/rand_complex.png){.fig}
 
     Args:
         key: A PRNG key used as the random key.

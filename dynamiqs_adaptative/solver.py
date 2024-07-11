@@ -7,7 +7,17 @@ import equinox as eqx
 from ._utils import tree_str_inline
 from .gradient import Autograd, CheckpointAutograd, Gradient
 
-__all__ = ['Propagator', 'Euler', 'Rouchon1', 'Rouchon2', 'Dopri5', 'Dopri8', 'Tsit5']
+__all__ = [
+    'Propagator',
+    'Euler',
+    'Rouchon1',
+    'Rouchon2',
+    'Dopri5',
+    'Dopri8',
+    'Tsit5',
+    'Kvaerno3',
+    'Kvaerno5',
+]
 
 
 _TupleGradient = tuple[type[Gradient], ...]
@@ -64,7 +74,7 @@ class Propagator(Solver):
         The propagator method only supports constant Hamiltonian and jump
         operators. Piecewise-constant problems will also be supported in the future.
 
-    Notes: Supported gradients
+    Note-: Supported gradients
         This solver supports differentiation with
         [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd].
     """
@@ -91,7 +101,7 @@ class _ODEAdaptiveStep(_ODESolver):
     safety_factor: float = 0.9
     min_factor: float = 0.2
     max_factor: float = 5.0
-    max_steps: int = 300
+    max_steps: int = 100_000
 
 
 # === public solvers options
@@ -107,7 +117,7 @@ class Euler(_ODEFixedStep):
     Args:
         dt _(float)_: Fixed time step.
 
-    Notes: Supported gradients
+    Note-: Supported gradients
         This solver supports differentiation with
         [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd] and
         [`dq.gradient.CheckpointAutograd`][dynamiqs.gradient.CheckpointAutograd].
@@ -123,10 +133,10 @@ class Euler(_ODEFixedStep):
 class Rouchon1(_ODEFixedStep):
     """First-order Rouchon method (fixed step size ODE solver).
 
-    Warning:
-        This solver has not been ported to JAX yet.
+    Args:
+        dt _(float)_: Fixed time step.
 
-    Notes: Supported gradients
+    Note-: Supported gradients
         This solver supports differentiation with
         [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd] and
         [`dq.gradient.CheckpointAutograd`][dynamiqs.gradient.CheckpointAutograd].
@@ -157,7 +167,7 @@ class Rouchon2(_ODEFixedStep):
     Warning:
         This solver has not been ported to JAX yet.
 
-    Notes: Supported gradients
+    Note-: Supported gradients
         This solver supports differentiation with
         [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd] and
         [`dq.gradient.CheckpointAutograd`][dynamiqs.gradient.CheckpointAutograd].
@@ -184,7 +194,7 @@ class Dopri5(_ODEAdaptiveStep):
         max_factor: Maximum factor for adaptive step sizing.
         max_steps: Maximum number of steps.
 
-    Notes: Supported gradients
+    Note-: Supported gradients
         This solver supports differentiation with
         [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd] and
         [`dq.gradient.CheckpointAutograd`][dynamiqs.gradient.CheckpointAutograd].
@@ -200,7 +210,7 @@ class Dopri5(_ODEAdaptiveStep):
         safety_factor: float = 0.9,
         min_factor: float = 0.2,
         max_factor: float = 5.0,
-        max_steps: int = 300,
+        max_steps: int = 100_000,
     ):
         super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)
 
@@ -219,7 +229,7 @@ class Dopri8(_ODEAdaptiveStep):
         max_factor: Maximum factor for adaptive step sizing.
         max_steps: Maximum number of steps.
 
-    Notes: Supported gradients
+    Note-: Supported gradients
         This solver supports differentiation with
         [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd] and
         [`dq.gradient.CheckpointAutograd`][dynamiqs.gradient.CheckpointAutograd].
@@ -235,7 +245,7 @@ class Dopri8(_ODEAdaptiveStep):
         safety_factor: float = 0.9,
         min_factor: float = 0.2,
         max_factor: float = 5.0,
-        max_steps: int = 300,
+        max_steps: int = 100_000,
     ):
         super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)
 
@@ -254,7 +264,7 @@ class Tsit5(_ODEAdaptiveStep):
         max_factor: Maximum factor for adaptive step sizing.
         max_steps: Maximum number of steps.
 
-    Notes: Supported gradients
+    Note-: Supported gradients
         This solver supports differentiation with
         [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd] and
         [`dq.gradient.CheckpointAutograd`][dynamiqs.gradient.CheckpointAutograd].
@@ -270,6 +280,98 @@ class Tsit5(_ODEAdaptiveStep):
         safety_factor: float = 0.9,
         min_factor: float = 0.2,
         max_factor: float = 5.0,
-        max_steps: int = 300,
+        max_steps: int = 100_000,
+    ):
+        super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)
+
+
+class Kvaerno3(_ODEAdaptiveStep):
+    """Kvaerno's method of order 3 (adaptive step size and implicit ODE solver).
+
+    This method is suitable for stiff problems, typically those with Hamiltonians or
+    Liouvillians that have eigenvalues spanning different orders of magnitudes. This is
+    for instance the case with problems involving high-order polynomials of the bosonic
+    annihilation and creation operators, in large dimensions.
+
+    This solver is implemented by the [Diffrax](https://docs.kidger.site/diffrax/)
+    library, see [`diffrax.Kvaerno3`](https://docs.kidger.site/diffrax/api/solvers/ode_solvers/#diffrax.Kvaerno3).
+
+    Warning:
+        If you find that your simulation is slow or that the progress bar gets stuck,
+        consider switching to double-precision with
+        [`dq.set_precision('double')`][dynamiqs.set_precision]. See more details in
+        [The sharp bits 🔪](../../documentation/getting_started/sharp-bits.md) tutorial.
+
+    Args:
+        rtol: Relative tolerance.
+        atol: Absolute tolerance.
+        safety_factor: Safety factor for adaptive step sizing.
+        min_factor: Minimum factor for adaptive step sizing.
+        max_factor: Maximum factor for adaptive step sizing.
+        max_steps: Maximum number of steps.
+
+    Note-: Supported gradients
+        This solver supports differentiation with
+        [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd] and
+        [`dq.gradient.CheckpointAutograd`][dynamiqs.gradient.CheckpointAutograd].
+    """
+
+    SUPPORTED_GRADIENT: ClassVar[_TupleGradient] = (Autograd, CheckpointAutograd)
+
+    # dummy init to have the signature in the documentation
+    def __init__(
+        self,
+        rtol: float = 1e-6,
+        atol: float = 1e-6,
+        safety_factor: float = 0.9,
+        min_factor: float = 0.2,
+        max_factor: float = 5.0,
+        max_steps: int = 100_000,
+    ):
+        super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)
+
+
+class Kvaerno5(_ODEAdaptiveStep):
+    """Kvaerno's method of order 5 (adaptive step size and implicit ODE solver).
+
+    This method is suitable for stiff problems, typically those with Hamiltonians or
+    Liouvillians that have eigenvalues spanning different orders of magnitudes. This is
+    for instance the case with problems involving high-order polynomials of the bosonic
+    annihilation and creation operators, in large dimensions.
+
+    This solver is implemented by the [Diffrax](https://docs.kidger.site/diffrax/)
+    library, see [`diffrax.Kvaerno5`](https://docs.kidger.site/diffrax/api/solvers/ode_solvers/#diffrax.Kvaerno5).
+
+    Warning:
+        If you find that your simulation is slow or that the progress bar gets stuck,
+        consider switching to double-precision with
+        [`dq.set_precision('double')`][dynamiqs.set_precision]. See more details in
+        [The sharp bits 🔪](../../documentation/getting_started/sharp-bits.md) tutorial.
+
+    Args:
+        rtol: Relative tolerance.
+        atol: Absolute tolerance.
+        safety_factor: Safety factor for adaptive step sizing.
+        min_factor: Minimum factor for adaptive step sizing.
+        max_factor: Maximum factor for adaptive step sizing.
+        max_steps: Maximum number of steps.
+
+    Note-: Supported gradients
+        This solver supports differentiation with
+        [`dq.gradient.Autograd`][dynamiqs.gradient.Autograd] and
+        [`dq.gradient.CheckpointAutograd`][dynamiqs.gradient.CheckpointAutograd].
+    """
+
+    SUPPORTED_GRADIENT: ClassVar[_TupleGradient] = (Autograd, CheckpointAutograd)
+
+    # dummy init to have the signature in the documentation
+    def __init__(
+        self,
+        rtol: float = 1e-6,
+        atol: float = 1e-6,
+        safety_factor: float = 0.9,
+        min_factor: float = 0.2,
+        max_factor: float = 5.0,
+        max_steps: int = 100_000,
     ):
         super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)

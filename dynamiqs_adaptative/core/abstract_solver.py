@@ -6,25 +6,20 @@ import equinox as eqx
 from jax import Array
 from jaxtyping import PyTree, Scalar
 
+from .._utils import _concatenate_sort
 from ..gradient import Gradient
 from ..options import Options
 from ..result import MEResult, Result, Saved, SEResult
 from ..solver import Solver
 from ..time_array import TimeArray
 from ..utils.utils import expect
-from ..options import Options
-
-import jax
 
 
 class AbstractSolver(eqx.Module):
     @abstractmethod
     def run(self) -> PyTree:
         pass
-    
-class State(eqx.Module):
-    rho: Array
-    err: Array
+
 
 class BaseSolver(AbstractSolver):
     ts: Array
@@ -42,33 +37,25 @@ class BaseSolver(AbstractSolver):
     @property
     def t1(self) -> Scalar:
         return self.ts[-1]
-    
 
-    def save(self, y) -> Saved:
-        if isinstance(y, State):
-            rho = y.rho
-        else:
-            rho = y
-        ysave, Esave, extra, estimator = None, None, None, None
+    @property
+    def discontinuity_ts(self) -> Array | None:
+        return self.H.discontinuity_ts
+
+    def save(self, y: PyTree) -> Saved:
+        ysave, Esave, extra = None, None, None
         if self.options.save_states:
-            ysave = rho
+            ysave = y
         if self.Es is not None and len(self.Es) > 0:
-            Esave = expect(self.Es, rho)
+            Esave = expect(self.Es, y)
         if self.options.save_extra is not None:
-            extra = self.options.save_extra(rho)
-        if self.options.estimator and self.options.save_states:
-            estimator = y.err
-        return Saved(ysave, Esave, extra, estimator)
+            extra = self.options.save_extra(y)
+
+        return Saved(ysave, Esave, extra)
 
     def collect_saved(self, saved: Saved, ylast: Array) -> Saved:
         # if save_states is False save only last state
         if not self.options.save_states:
-            if self.options.estimator:
-                ylasterr = ylast[1]
-                ylast = ylast[0]
-                saved = eqx.tree_at(
-                lambda x: x.estimator, saved, ylasterr, is_leaf=lambda x: x is None
-            )
             saved = eqx.tree_at(
                 lambda x: x.ysave, saved, ylast, is_leaf=lambda x: x is None
             )
@@ -93,12 +80,11 @@ class SESolver(BaseSolver):
 
 class MESolver(BaseSolver):
     Ls: list[TimeArray]
-    Hred: TimeArray | None
-    Lsred: list[TimeArray] | None
-    _mask: Array | None
-    estimator: Array | None
-    dt0: float | None
-    
+
     def result(self, saved: Saved, infos: PyTree | None = None) -> Result:
         return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)
 
+    @property
+    def discontinuity_ts(self) -> Array | None:
+        ts = [x.discontinuity_ts for x in [self.H, *self.Ls]]
+        return _concatenate_sort(*ts)
