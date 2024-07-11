@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import jax
 import itertools
 from .tensorisation_maker import tensorisation_maker
 from .inequalities import generate_rec_ineqs, update_ineq
@@ -42,7 +43,7 @@ def projection_nD(
     if _mask is None:
         if tensorisation is None or inequalities is None:
             raise ValueError(" You have to either give a mask or a tensorisation with some inequalities")
-        dictio = dict_nD(tensorisation, inequalities, options, 'proj')
+        dictio = jnp.array(dict_nD(tensorisation, inequalities, options, 'proj'))
 
         _mask = mask(new_objs[0], dictio)
     for i in range(len(new_objs)):
@@ -116,6 +117,7 @@ def extension_nD(
     # print(objs)
     return extension(objs, new_positions, old_positions, len_new_objs), ineq_to_tensors, options
 
+# @jax.jit
 def extension(objs, new_positions, old_positions, len_new_objs):
     """
     The extension itself.
@@ -228,6 +230,26 @@ def mask(obj, pos):
         mask = jnp.where(jnp.arange(obj.shape[0])[:, None] == x, False, mask)  # Zero out row
         mask = jnp.where(jnp.arange(obj.shape[1])[None, :] == x, False, mask)  # Zero out column
     return mask
+
+def mask_jaxed(obj, pos): # in tests was fatser in practice... No ?
+    """
+    Prepare positions in a matrix of size obj where we want to act through a mask.
+
+    Args:
+    obj: input matrix.
+    pos: positions where zeros should be placed.
+
+    Returns:
+    mask: Boolean matrix where False indicates where we will act (putting zeros when
+    projecting for instance).
+    """
+    n_rows, n_cols = obj.shape
+    row_indices = jnp.arange(n_rows)[:, None]
+    col_indices = jnp.arange(n_cols)[None, :]
+    row_mask = jnp.isin(row_indices, pos)
+    col_mask = jnp.isin(col_indices, pos)
+    combined_mask = row_mask | col_mask
+    return ~combined_mask
 
 def add_zeros_line(matrix, k):
     """
