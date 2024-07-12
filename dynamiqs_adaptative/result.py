@@ -35,14 +35,6 @@ class Saved(eqx.Module):
     Esave: Array | None
     extra: PyTree | None
 
-class Saved_estimator(Saved):
-    estimator: Array | None
-    time: Array | None
-    
-    def __init__(self, ysave, Esave, extra, estimator, time):
-        super().__init__(ysave, Esave, extra)
-        self.estimator = estimator
-        self.time = time
 
 class Result(eqx.Module):
     tsave: Array
@@ -104,7 +96,7 @@ class SEResult(Result):
         expects _(array of shape (..., len(exp_ops), ntsave) or None)_: Saved
             expectation values, if specified by `exp_ops`.
         extra _(PyTree or None)_: Extra data saved with `save_extra()` if
-            specified in `options` (see [`dq.Options`][dynamiqs.Options]).
+            specified in `options`.
         infos _(PyTree or None)_: Solver-dependent information on the resolution.
         tsave _(array of shape (ntsave,))_: Times for which results were saved.
         solver _(Solver)_: Solver used.
@@ -154,7 +146,7 @@ class MEResult(Result):
         expects _(array of shape (..., len(exp_ops), ntsave) or None)_: Saved
             expectation values, if specified by `exp_ops`.
         extra _(PyTree or None)_: Extra data saved with `save_extra()` if
-            specified in `options` (see [`dq.Options`][dynamiqs.Options]).
+            specified in `options`.
         infos _(PyTree or None)_: Solver-dependent information on the resolution.
         tsave _(array of shape (ntsave,))_: Times for which results were saved.
         solver _(Solver)_: Solver used.

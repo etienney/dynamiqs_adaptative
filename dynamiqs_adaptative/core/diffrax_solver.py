@@ -11,13 +11,8 @@ from jaxtyping import PyTree
 from ..gradient import Autograd, CheckpointAutograd
 from .abstract_solver import BaseSolver
 
-from ..estimator.saves import save_estimator, collect_saved_estimator
 
 class DiffraxSolver(BaseSolver):
-    # Subclasses should implement:
-    # - the attributes: stepsize_controller, dt0, max_steps, diffrax_solver, terms
-    # - the methods: result, infos
-
     stepsize_controller: dx.AbstractVar[dx.AbstractStepSizeController]
     dt0: dx.AbstractVar[float | None]
     max_steps: dx.AbstractVar[int]
@@ -34,14 +29,10 @@ class DiffraxSolver(BaseSolver):
             warnings.simplefilter('ignore', UserWarning)
 
             # === prepare diffrax arguments
-            if self.options.estimator:
-                subsaveat_a = dx.SubSaveAt(t0 =True, steps=True, fn=save_estimator)
-                saveat = dx.SaveAt(subs=[subsaveat_a])
-            else:
-                fn = lambda t, y, args: self.save(y)  # noqa: ARG005
-                subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
-                subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
-                saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
+            fn = lambda t, y, args: self.save(y)  # noqa: ARG005
+            subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
+            subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
+            saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
 
             if self.gradient is None:
                 adjoint = dx.RecursiveCheckpointAdjoint()
@@ -66,14 +57,9 @@ class DiffraxSolver(BaseSolver):
             )
 
         # === collect and return results
-        if self.options.estimator:
-            saved = solution.ys[0]
-            return self.result(saved, infos=self.infos(solution.stats))
-            # return collect_saved_estimator(self, solution)
-        else:
-            save_a, save_b = solution.ys
-            saved = self.collect_saved(save_a, save_b[0])
-            return self.result(saved, infos=self.infos(solution.stats))
+        save_a, save_b = solution.ys
+        saved = self.collect_saved(save_a, save_b[0])
+        return self.result(saved, infos=self.infos(solution.stats))
 
     @abstractmethod
     def infos(self, stats: dict[str, Array]) -> PyTree:
@@ -81,10 +67,6 @@ class DiffraxSolver(BaseSolver):
 
 
 class FixedSolver(DiffraxSolver):
-    # Subclasses should implement:
-    # - the attributes: diffrax_solver, terms
-    # - the methods: result
-
     class Infos(eqx.Module):
         nsteps: Array
 
@@ -97,7 +79,7 @@ class FixedSolver(DiffraxSolver):
             return f'{self.nsteps} steps'
 
     stepsize_controller: dx.AbstractStepSizeController = dx.ConstantStepSize()
-    max_steps: int = 1000  # TODO: fix hard-coded max_steps
+    max_steps: int = 100_000  # TODO: fix hard-coded max_steps
 
     @property
     def dt0(self) -> float:
@@ -112,10 +94,6 @@ class EulerSolver(FixedSolver):
 
 
 class AdaptiveSolver(DiffraxSolver):
-    # Subclasses should implement:
-    # - the attributes: diffrax_solver, terms
-    # - the methods: result
-
     class Infos(eqx.Module):
         nsteps: Array
         naccepted: Array
@@ -124,8 +102,8 @@ class AdaptiveSolver(DiffraxSolver):
         def __str__(self) -> str:
             if self.nsteps.ndim >= 1:
                 return (
-                    f'avg. {self.nsteps.mean():.1f} steps ({self.naccepted.mean():.1f}'
-                    f' accepted, {self.nrejected.mean():.1f} rejected) | infos shape'
+                    f'avg. {self.nsteps.mean()} steps ({self.naccepted.mean()}'
+                    f' accepted, {self.nrejected.mean()} rejected) | infos shape'
                     f' {self.nsteps.shape}'
                 )
             return (
@@ -143,7 +121,6 @@ class AdaptiveSolver(DiffraxSolver):
             safety=self.solver.safety_factor,
             factormin=self.solver.min_factor,
             factormax=self.solver.max_factor,
-            jump_ts=self.discontinuity_ts,
         )
 
     @property
@@ -166,11 +143,3 @@ class Dopri8Solver(AdaptiveSolver):
 
 class Tsit5Solver(AdaptiveSolver):
     diffrax_solver = dx.Tsit5()
-
-
-class Kvaerno3Solver(AdaptiveSolver):
-    diffrax_solver = dx.Kvaerno3()
-
-
-class Kvaerno5Solver(AdaptiveSolver):
-    diffrax_solver = dx.Kvaerno5()
