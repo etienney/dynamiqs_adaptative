@@ -33,6 +33,18 @@ class Options(eqx.Module):
             `f(Array) -> PyTree` that takes a state as input and returns a PyTree.
             This can be used to save additional arbitrary data during the
             integration. The results are saved in extra of class Result, see [dynamiqs/result.py](https://github.com/dynamiqs/dynamiqs/blob/main/dynamiqs/result.py)
+        tensorisation: (expects inequalities to be 'True')
+            Explain to the program that we are dealing with
+            a n dimensional object. An input could be (2,3) for an object tensorised 
+            according to ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2)) for instance.
+        inequalities: (expects tensorisation to be given)
+            For a n-dimensional object, you can give your own truncature to the
+            operators. It has to be formated like a list of 2 objects list [f, param].
+            param: a float.
+            f: a function that has len("number of dimensions") inputs and outputs a 
+            float.
+            Exemple: [param = 2, f = def f(i, j): return i+j] for a 2D tensorisation
+            gives [lambda i, j: i+j <= 2]
     """
 
     save_states: bool = True
@@ -41,6 +53,8 @@ class Options(eqx.Module):
     progress_meter: AbstractProgressMeter | None = TqdmProgressMeter()
     t0: ScalarLike | None = None
     save_extra: callable[[Array], PyTree] | None = None
+    tensorisation: tuple | None = None
+    inequalities: list | None = None
 
     def __init__(
         self,
@@ -50,6 +64,8 @@ class Options(eqx.Module):
         progress_meter: AbstractProgressMeter | None = TqdmProgressMeter(),  # noqa: B008
         t0: ScalarLike | None = None,
         save_extra: callable[[Array], PyTree] | None = None,
+        tensorisation: tuple | None = None,
+        inequalities: list | None = None,
     ):
         if progress_meter is None:
             progress_meter = NoProgressMeter()
@@ -59,6 +75,8 @@ class Options(eqx.Module):
         self.cartesian_batching = cartesian_batching
         self.progress_meter = progress_meter
         self.t0 = t0
+        self.tensorisation = tensorisation
+        self.inequalities = inequalities
 
         # make `save_extra` a valid Pytree with `Partial`
         if save_extra is not None:

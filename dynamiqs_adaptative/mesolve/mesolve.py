@@ -26,6 +26,8 @@ from ..utils.utils import todm
 from .mediffrax import MEDopri5, MEDopri8, MEEuler, METsit5
 from .mepropagator import MEPropagator
 
+from ..inequalities.reshapings import downsize_via_ineq
+
 __all__ = ['mesolve']
 
 
@@ -98,6 +100,10 @@ def mesolve(
             to access saved quantities, more details in
             [`dq.MEResult`][dynamiqs.MEResult].
     """  # noqa: E501
+
+    if options.tensorisation is not None and options.inequalities is not None:
+        H, rho0, *jump_ops = downsize_via_ineq(H, rho0, jump_ops, options)
+
     # === convert arguments
     H = _astimearray(H)
     jump_ops = [_astimearray(L) for L in jump_ops]
