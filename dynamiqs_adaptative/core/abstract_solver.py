@@ -52,7 +52,7 @@ class BaseSolver(AbstractSolver):
             extra = self.options.save_extra(y)
 
         return Saved(ysave, Esave, extra)
-
+    
     def collect_saved(self, saved: Saved, ylast: Array) -> Saved:
         # if save_states is False save only last state
         if not self.options.save_states:

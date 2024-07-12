@@ -1,4 +1,4 @@
-from ...a_posteriori.n_D.reshapings import (
+from ...a_posteriori_old.n_D.reshapings import (
     reshaping_extend, check_max_reshaping_reached, error_reducing, reshapings_reduce
 )
 from ..one_D.degree_guesser_1D import degree_guesser_list
@@ -9,7 +9,7 @@ from ..n_D.inequalities import generate_rec_ineqs
 from ...core._utils import _astimearray
 # from ...mesolve.mesolve import _vmap_mesolve
 from .utils import find_approx_index, prod
-from ...a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
+from ...a_posteriori_old.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
 
 from ...utils.utils import dag
 from ...time_array import ConstantTimeArray

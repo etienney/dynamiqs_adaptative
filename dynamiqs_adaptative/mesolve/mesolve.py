@@ -37,6 +37,9 @@ from .mediffrax import MEDopri5, MEDopri8, MEEuler, MEKvaerno3, MEKvaerno5, METs
 from .mepropagator import MEPropagator
 from .merouchon import MERouchon1
 
+from typing import Any
+from ..estimator.saves import collect_saved_estimator
+
 __all__ = ['mesolve']
 
 
@@ -133,8 +136,13 @@ def mesolve(
 
     # we implement the jitted vectorization in another function to pre-convert QuTiP
     # objects (which are not JIT-compatible) to JAX arrays
-    return _vectorized_mesolve(
+    result = _vectorized_mesolve(
         H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+    )
+
+    return (
+        collect_saved_estimator(result) if options.estimator 
+        else result  
     )
 
 
@@ -224,7 +232,7 @@ def _mesolve(
     result = solver.run()
 
     # === return result
-    return result  # noqa: RET504
+    return result # noqa: RET504
 
 
 def _check_mesolve_args(

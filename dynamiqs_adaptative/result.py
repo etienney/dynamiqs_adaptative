@@ -35,6 +35,14 @@ class Saved(eqx.Module):
     Esave: Array | None
     extra: PyTree | None
 
+class Saved_estimator(Saved):
+    estimator: Array | None
+    time: Array | None
+    
+    def __init__(self, ysave, Esave, extra, estimator, time):
+        super().__init__(ysave, Esave, extra)
+        self.estimator = estimator
+        self.time = time
 
 class Result(eqx.Module):
     tsave: Array
