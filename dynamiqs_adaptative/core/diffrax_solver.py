@@ -11,7 +11,8 @@ from jaxtyping import PyTree
 from ..gradient import Autograd, CheckpointAutograd
 from .abstract_solver import BaseSolver
 
-from ..estimator.saves import save_estimator, collect_saved_estimator
+from ..estimator.saves import save_estimator
+import jax
 
 class DiffraxSolver(BaseSolver):
     # Subclasses should implement:
@@ -68,8 +69,8 @@ class DiffraxSolver(BaseSolver):
         # === collect and return results
         if self.options.estimator:
             saved = solution.ys[0]
+            jax.debug.print("eee{e}", e = saved)
             return self.result(saved, infos=self.infos(solution.stats))
-            # return collect_saved_estimator(self, solution)
         else:
             save_a, save_b = solution.ys
             saved = self.collect_saved(save_a, save_b[0])

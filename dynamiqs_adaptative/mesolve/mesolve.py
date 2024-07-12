@@ -39,6 +39,7 @@ from .merouchon import MERouchon1
 
 from typing import Any
 from ..estimator.saves import collect_saved_estimator
+from ..estimator.wrap_solver import wrap_solver
 
 __all__ = ['mesolve']
 
@@ -134,11 +135,17 @@ def mesolve(
     # === convert rho0 to density matrix
     rho0 = todm(rho0)
 
+    if options.estimator:
+        # print(solver)
+        solver2 = wrap_solver(type(solver))()
+        # print(solver2)
+
     # we implement the jitted vectorization in another function to pre-convert QuTiP
     # objects (which are not JIT-compatible) to JAX arrays
     result = _vectorized_mesolve(
         H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
     )
+
 
     return (
         collect_saved_estimator(result) if options.estimator 
@@ -221,6 +228,7 @@ def _mesolve(
         Propagator: MEPropagator,
     }
     solver_class = get_solver_class(solvers, solver)
+    if options.estimator: solver_class = wrap_solver(solver_class)
 
     # === check gradient is supported
     solver.assert_supports_gradient(gradient)
