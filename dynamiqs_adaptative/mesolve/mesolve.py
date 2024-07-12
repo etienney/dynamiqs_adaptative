@@ -135,11 +135,6 @@ def mesolve(
     # === convert rho0 to density matrix
     rho0 = todm(rho0)
 
-    if options.estimator:
-        # print(solver)
-        solver2 = wrap_solver(type(solver))()
-        # print(solver2)
-
     # we implement the jitted vectorization in another function to pre-convert QuTiP
     # objects (which are not JIT-compatible) to JAX arrays
     result = _vectorized_mesolve(
@@ -228,13 +223,14 @@ def _mesolve(
         Propagator: MEPropagator,
     }
     solver_class = get_solver_class(solvers, solver)
-    if options.estimator: solver_class = wrap_solver(solver_class)
 
     # === check gradient is supported
     solver.assert_supports_gradient(gradient)
 
     # === init solver
     solver = solver_class(tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops)
+    if options.estimator:
+        solver.__dict__['diffrax_solver'] = wrap_solver(type(solver.diffrax_solver))()
 
     # === run solver
     result = solver.run()
