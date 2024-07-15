@@ -15,6 +15,10 @@ from ..core.diffrax_solver import (
 )
 from ..utils.utils import dag
 
+import time
+from ..estimator.reshapings import projection_nD
+from ..core.abstract_solver import State
+import jax
 
 class MEDiffraxSolver(DiffraxSolver, MESolver):
     @property
@@ -38,14 +42,38 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
         # and is thus more efficient numerically with only a negligible numerical error
         # induced on the dynamics.
 
+        def vector_field_estimator_nD(t, y: State, _):
+            # run the simulation for a smaller size than the defined tensorisation.
+            # instead of really reducing the operators to a smaller sized space, we will
+            # project all of them on a smaller sized space (the result is the same)
+            t0 = time.time()    
+            y_true = jnp.array(y.rho)
+            rho = projection_nD(y_true, self._mask)
+            t1 = time.time()
+            # jax.debug.print("{a}", a= t121-t120)
+            Hred = self.Hred(t)
+            Lsred = jnp.stack([L(t) for L in self.Lsred])
+            t2 = time.time()
+            Lsd = dag(Lsred)
+            LdL = (Lsd @ Lsred).sum(0)
+            tmp = (-1j * Hred - 0.5 * LdL) @ rho + 0.5 * (Lsred @ rho @ Lsd).sum(0)
+            drho = tmp + dag(tmp)
+            t3 = time.time()
+            derr = 0
+            # jax.debug.print("err instantanée de diffrax: {derr} à {t}", derr=derr, t=t)
+            return State(drho, derr)
+
         def vector_field(t, y, _):  # noqa: ANN001, ANN202
             Ls = jnp.stack([L(t) for L in self.Ls])
             Lsd = dag(Ls)
             LdL = (Lsd @ Ls).sum(0)
             tmp = (-1j * self.H(t) - 0.5 * LdL) @ y + 0.5 * (Ls @ y @ Lsd).sum(0)
             return tmp + dag(tmp)
-
-        return dx.ODETerm(vector_field)
+        
+        if self.options.estimator:
+            return dx.ODETerm(vector_field_estimator_nD) 
+        else:
+            return dx.ODETerm(vector_field)
 
 
 class MEEuler(MEDiffraxSolver, EulerSolver):

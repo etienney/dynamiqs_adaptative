@@ -39,6 +39,7 @@ from .merouchon import MERouchon1
 
 from typing import Any
 from ..estimator.saves import collect_saved_estimator
+from ..estimator.mesolve_fcts import mesolve_estimator_init
 
 __all__ = ['mesolve']
 
@@ -126,7 +127,10 @@ def mesolve(
     rho0 = jnp.asarray(rho0, dtype=cdtype())
     tsave = jnp.asarray(tsave)
     exp_ops = jnp.asarray(exp_ops, dtype=cdtype()) if exp_ops is not None else None
-
+    options, Hred, _mask, Lsred = mesolve_estimator_init(
+        options, H, jump_ops, tsave
+    )
+    
     # === check arguments
     _check_mesolve_args(H, jump_ops, rho0, exp_ops)
     tsave = check_times(tsave, 'tsave')
@@ -137,7 +141,7 @@ def mesolve(
     # we implement the jitted vectorization in another function to pre-convert QuTiP
     # objects (which are not JIT-compatible) to JAX arrays
     result = _vectorized_mesolve(
-        H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+        H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, Hred, Lsred, _mask
     )
 
     return (
@@ -157,6 +161,9 @@ def _vectorized_mesolve(
     solver: Solver,
     gradient: Gradient | None,
     options: Options,
+    Hred: TimeArray | None,
+    Lsred: list[TimeArray] | None,
+    _mask: Array | None,
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
@@ -165,7 +172,7 @@ def _vectorized_mesolve(
 
     # the result is vectorized over `_saved` and `infos`
     out_axes = MEResult(False, False, False, False, 0, 0)
-
+    
     if not options.cartesian_batching:
         broadcast_shape = jnp.broadcast_shapes(
             H.shape[:-2], rho0.shape[:-2], *[jump_op.shape[:-2] for jump_op in jump_ops]
@@ -187,8 +194,11 @@ def _vectorized_mesolve(
         Shape(),
         Shape(),
         Shape(),
+        Shape(),
+        Shape(),
+        Shape()
     )
-
+    
     # compute vectorized function with given batching strategy
     if options.cartesian_batching:
         f = _cartesian_vectorize(_mesolve, n_batch, out_axes)
@@ -196,7 +206,10 @@ def _vectorized_mesolve(
         f = _flat_vectorize(_mesolve, n_batch, out_axes)
 
     # === apply vectorized function
-    return f(H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options)
+    return f(
+        H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options, Hred, Lsred, 
+        _mask
+    )
 
 
 def _mesolve(
@@ -208,6 +221,9 @@ def _mesolve(
     solver: Solver,
     gradient: Gradient | None,
     options: Options,
+    Hred: TimeArray | None,
+    Lsred: list[TimeArray] | None,
+    _mask: Array | None,
 ) -> MEResult:
     # === select solver class
     solvers = {
@@ -226,8 +242,10 @@ def _mesolve(
     solver.assert_supports_gradient(gradient)
 
     # === init solver
-    solver = solver_class(tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops)
-
+    solver = solver_class(
+        tsave, rho0, H, exp_ops, solver, gradient, options, jump_ops, Hred, Lsred, _mask
+    )
+    
     # === run solver
     result = solver.run()
 

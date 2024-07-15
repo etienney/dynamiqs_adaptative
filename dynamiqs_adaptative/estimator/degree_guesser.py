@@ -1,10 +1,9 @@
 from functools import reduce
+from .._utils import cdtype
+from jax.lax import while_loop
+import jax
 import jax.numpy as jnp
-from ..._utils import cdtype
-from..one_D.degree_guesser_1D import degree_guesser
 import itertools
-from ...utils.utils.general import dag, tensor
-from ...utils.operators import destroy
 
 def degree_guesser_nD_list(H, L, tensorisation):
     # designed for H and jump_ops specifically. Takes the max in the modes amongst all
@@ -17,7 +16,7 @@ def degree_guesser_nD_list(H, L, tensorisation):
 
 def degree_guesser_nD(M, tensorisation):
     # allows to have the max degree in the different modes for n modes.
-    # for a@a@b + a@b it outputs [2,1]
+    # for a@a@b + a@b it outputs [2,1] for instance
     input_list = []
     # start with all degree at least being zero
     for i in range(0, len(tensorisation)):
@@ -60,8 +59,6 @@ def degree_guesser_nD_rec(M, deg, tensorisation):
             if not jnp.array_equal(zeros, reduced_M_col):
                 yield [deg, i]
                 yield from degree_guesser_nD_rec(reduced_M_col, deg + 1, tensorisation)
-            
-        
                 
 def treatment(deg,M):
     # just to return the result of degree_guesser in the good format
@@ -72,6 +69,8 @@ def product(list):
     return reduce(lambda x, y: x * y, list)
 
 def unit_test_degree_guesser_nD():
+    from ..utils.operators import destroy
+    from ..utils.utils.general import dag, tensor
     n_a=5
     n_b=5
     n_c=6
@@ -114,3 +113,44 @@ def unit_test_degree_guesser_nD():
             f'{idedeg} not [0,0,0] ?'
         )
         return False
+
+def degree_guesser_list(H, L):
+    # guess the maximum degree to check in a and adag for H and jumps operators
+    k = (degree_guesser(H),)
+    for x in L:             
+        k = k + (degree_guesser(x),)
+    # we take the max amongst all, it's not optimal for computation time, but it's okay
+    k = max(tuple([max(x) for x in zip(*k)]))
+    return k
+
+def degree_guesser(H):
+    # guess the degree of a matrix issued from additions 
+    # and products of polynomials in a and adag
+    taille=jnp.size(H[0])
+    dega=taille
+    degadag=taille
+    cond_fun_a = lambda x: jax.lax.cond(
+            x>1, lambda y : ((H[taille][taille-y]==jnp.zeros(1, cdtype())).all()), 
+            lambda y : False, x
+    )
+    cond_fun_b = lambda x: jax.lax.cond(
+            x>1, lambda y : ((H[taille-y][taille]==jnp.zeros(1, cdtype())).all()), 
+            lambda y : False, x
+    )
+    body_fun_minus_1 = lambda x: x-1
+    dega = while_loop(cond_fun_a, body_fun_minus_1, dega)
+    degadag = while_loop(cond_fun_b, body_fun_minus_1, degadag)   
+    return dega-1,degadag-1
+
+def unit_test_degree_guesser():
+    from ..utils.operators import create
+    from ..utils.utils.general import dag
+    a=create(6)
+    id=jnp.identity(6)
+    if degree_guesser(
+        a@a@a@a+dag(a)+(a@a+id+dag(a))@(id+dag(a)@dag(a)@dag(a)+id+a@a@a@a)
+    )!=(4,4) or degree_guesser(a@a@dag(a)+id)!=(1,0):
+        print( degree_guesser(a@a@dag(a)+id))
+        return False
+    else:
+        return True

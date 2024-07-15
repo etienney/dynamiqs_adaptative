@@ -12,7 +12,10 @@ from ..gradient import Autograd, CheckpointAutograd
 from .abstract_solver import BaseSolver
 
 from ..estimator.saves import save_estimator
+from .abstract_solver import State
 import jax
+import jax.numpy as jnp
+from .._utils import cdtype
 
 class DiffraxSolver(BaseSolver):
     # Subclasses should implement:
@@ -58,12 +61,16 @@ class DiffraxSolver(BaseSolver):
                 t0=self.t0,
                 t1=self.ts[-1],
                 dt0=self.dt0,
-                y0=self.y0,
+                y0=State(
+                    self.y0, # the solution at current time
+                    jnp.zeros(1, dtype = cdtype()), # the estimator at current time
+                ) if self.options.estimator else self.y0,
                 saveat=saveat,
                 stepsize_controller=self.stepsize_controller,
                 adjoint=adjoint,
                 max_steps=self.max_steps,
                 progress_meter=self.options.progress_meter.to_diffrax(),
+                args = [self.H, self.Ls, self._mask] 
             )
 
         # === collect and return results

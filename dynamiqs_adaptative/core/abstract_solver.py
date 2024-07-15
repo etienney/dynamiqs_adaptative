@@ -20,7 +20,10 @@ class AbstractSolver(eqx.Module):
     def run(self) -> PyTree:
         pass
 
-
+class State(eqx.Module):
+    rho: Array
+    err: Array
+    
 class BaseSolver(AbstractSolver):
     ts: Array
     y0: Array
@@ -80,6 +83,9 @@ class SESolver(BaseSolver):
 
 class MESolver(BaseSolver):
     Ls: list[TimeArray]
+    Hred: TimeArray | None
+    Lsred: list[TimeArray] | None
+    _mask: Array | None
 
     def result(self, saved: Saved, infos: PyTree | None = None) -> Result:
         return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)
