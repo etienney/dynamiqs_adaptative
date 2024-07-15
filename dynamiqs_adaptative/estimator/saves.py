@@ -6,6 +6,7 @@ def save_estimator(t, y, args):
     # Special save function for computing the estimator
     return Saved_estimator(y, None, None, None, t)
 
+
 def collect_saved_estimator(results):
     # format the output of the dx.diffeqsolve
     tmp_dic=results.__dict__
