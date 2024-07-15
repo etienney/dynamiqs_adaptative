@@ -60,7 +60,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             drho = tmp + dag(tmp)
             t3 = time.time()
             derr = 0
-            # jax.debug.print("err instantanée de diffrax: {derr} à {t}", derr=derr, t=t)
+            # jax.debug.print("{a} et {b}", a= t1-t0, b = t3-t1)
             return State(drho, derr)
 
         def vector_field(t, y, _):  # noqa: ANN001, ANN202

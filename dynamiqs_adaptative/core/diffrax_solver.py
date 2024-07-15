@@ -70,7 +70,7 @@ class DiffraxSolver(BaseSolver):
                 adjoint=adjoint,
                 max_steps=self.max_steps,
                 progress_meter=self.options.progress_meter.to_diffrax(),
-                args = [self.H, self.Ls, self._mask] 
+                args = [self.H, self.Ls, self.Hred, self.Lsred, self._mask] 
             )
 
         # === collect and return results

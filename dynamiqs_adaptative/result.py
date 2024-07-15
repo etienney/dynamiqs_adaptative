@@ -63,14 +63,46 @@ class Result(eqx.Module):
     @property
     def extra(self) -> PyTree | None:
         return self._saved.extra
-
+    
+    @property
+    def estimator(self) -> Array:
+        if self.options.estimator:
+            return self._saved.estimator
+        else:
+            raise ValueError('Calling estimator without using it does not make sense. '
+                             'Try putting \'options = dq.Options(estimator=True)\'')
+        
     def _str_parts(self) -> dict[str, str]:
+        if self.options.estimator:
+            if self.options.tensorisation is None:
+                simu_size = ((self.states).shape)[0] - self.options.trunc_size
+                given_size = ((self.states).shape)[0]
+            else:
+                simu_size = [
+                    self.options.tensorisation[i] - self.options.trunc_size[i]
+                    for i in range(len(self.options.tensorisation))
+                ]
+                given_size = self.options.tensorisation
+                # print it in a nicer way, without the "Array"
+                simu_size = tuple(arr.item() for arr in simu_size)
+                given_size = tuple(arr.item() for arr in given_size)
+            estimator = self.estimator[-1]
+
         return {
             'Solver  ': type(self.solver).__name__,
             'Gradient': (
                 type(self.gradient).__name__ if self.gradient is not None else None
             ),
-            'States  ': array_str(self.states),
+            'States  ': array_str(self.states) ,
+            'Estimator ': (
+                estimator if self.options.estimator else None
+            ),
+            'Simulation size ': (
+                simu_size if self.options.estimator else None
+            ),
+            'Original size ': (
+                given_size if self.options.estimator else None
+            ),
             'Expects ': array_str(self.expects),
             'Extra   ': (
                 eqx.tree_pformat(self.extra) if self.extra is not None else None
