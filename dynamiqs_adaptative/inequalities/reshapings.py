@@ -9,18 +9,16 @@ def downsize_via_ineq(H, rho0, jump_ops, options):
     actual_tensorisation = list(
         itertools.product(*[range(max_dim) for max_dim in options.tensorisation])
     )
-    tensorisation = ineq_to_tensorisation(inequalities, actual_tensorisation)
     indices_to_cut = indices_cut_by_ineqs(inequalities, actual_tensorisation)
-    # fun = jax.jit(lambda x: reduction_nD(x, indices_to_cut))
     H, rho0, *jump_ops = [
         reduction_nD(x, indices_to_cut) for x in ([H]+[rho0]+jump_ops)
     ]
-    options.__dict__['inequalities'] = [[None, p] for p in params]
+    options.__dict__['inequalities'] = [[None, p] for p in params] # JAX cannot stand lambda arguments when called with options
     return (H, rho0, jump_ops)
 
 def reduction_nD(obj, positions):
     """
-    delete rows and cols of the object for said positions
+    delete rows and cols of the object for said positions.
     """
     # Convert positions to a numpy array for indexing
     positions = jnp.array(positions)
