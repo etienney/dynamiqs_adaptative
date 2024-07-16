@@ -56,11 +56,8 @@ class DiffraxSolver(BaseSolver):
                 saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
             else:
                 fn = lambda t, y, args: self.save(y)  # noqa: ARG005
-                subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
-                subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
-                # to have solver times
                 subsaveat_c = dx.SubSaveAt(t0 =True, steps=True)
-                saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b, subsaveat_c])
+                saveat = dx.SaveAt(subs=[subsaveat_c])
 
             if self.gradient is None:
                 adjoint = dx.RecursiveCheckpointAdjoint()
@@ -72,21 +69,28 @@ class DiffraxSolver(BaseSolver):
             # stop the diffrax integration if condition is reached (we will then restart
             # a diffrax integration with a reshaping of H, L, rho)
             def condition(state, **kwargs):
-                jax.debug.print("error verif: {a}", a=state.y.err)
+                dt = state.tnext - state.tprev
+                index = state.save_state[0].save_index
+                dest = state.save_state[0].ys.estimator[index-1]
+                
+                jax.debug.print("error verif: {a} and dt: {dt}", a=dest, dt = dt)
                 erreur_tol = (state.tprev * 
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 )
+                # not_max = not check_max_reshaping_reached(self.options, self.Hred)
                 not_max = not check_max_reshaping_reached(self.options, self.Hred)
-                extend = jax.lax.cond(((state.y.err[0]).real >= erreur_tol) & 
+                extend = jax.lax.cond((dest * dt >= erreur_tol) & 
                     not_max, lambda: True, lambda: False
                 )
-                error_red = error_reducing(state.y.rho, self.options)
-                reduce = jax.lax.cond(
-                    ((state.y.err[0]).real + error_red <= 
-                    erreur_tol/self.options.downsizing_rtol)
-                    & (len(state.y.rho[0]) > 100), lambda: True, lambda: False # 100 bcs overhead too big to find useful to downsize such little matrices
-                )
+                # # print(kwargs['args'][4])
+                # error_red = error_reducing(state.y.rho, self.options)
+                reduce = False
+                # reduce = jax.lax.cond(
+                #     ((state.y.err[0]).real + error_red <= 
+                #     erreur_tol/self.options.downsizing_rtol)
+                #     & (len(state.y.rho[0]) > 100), lambda: True, lambda: False # 100 bcs overhead too big to find useful to downsize such little matrices
+                # )
                 # jax.debug.print("sooo ?{res}", res = self.terms.vf(state.tprev, state.y, 0).err)
                 jax.debug.print("activation: e:{a} r:{b} and error seuil: {c}, and time: {tprev}"
                 , a=extend, b=reduce, c =erreur_tol, tprev = state.tprev)
@@ -110,12 +114,12 @@ class DiffraxSolver(BaseSolver):
                 stepsize_controller=self.stepsize_controller,
                 adjoint=adjoint,
                 max_steps=self.max_steps,
-                progress_meter=self.options.progress_meter.to_diffrax(),
+                progress_meter=self.options.progress_meter.to_diffrax(), 
                 args = [self.H, self.Ls, self.Hred, self.Lsred, self._mask] 
             )
 
         # === collect and return results
-        if self.options.estimator:
+        if self.options.estimator and not self.options.reshaping:
             # jax.debug.print("ee{e}", e = self.diffrax_solver.interpolation_cls)
             saved = solution.ys[0]
             return self.result(saved, infos=self.infos(solution.stats))
@@ -124,13 +128,13 @@ class DiffraxSolver(BaseSolver):
             saved = self.collect_saved(save_a, save_b[0])
             return self.result(saved, infos=self.infos(solution.stats))
         else:
-            save_a, save_b, save_c = solution.ys
+            saved = solution.ys[0]
             # give additional infos needed for the reshaping
             # jax.debug.print("fin saved: {res}", res = self)
-            # jax.debug.print("activation: {b}", b=solution.event_mask)
-            return [self.result(saved, infos=self.infos(solution.stats)), 
-                solution.ts[-1], save_c, self, solution.result,
-            ]
+            return self.result(saved, infos=self.infos(solution.stats))
+            # return [self.result(saved, infos=self.infos(solution.stats)), 
+            #     solution.ts[-1], save_c, self, solution.result,
+            # ]
 
     @abstractmethod
     def infos(self, stats: dict[str, Array]) -> PyTree:

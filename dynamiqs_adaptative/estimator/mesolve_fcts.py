@@ -1,14 +1,33 @@
 import jax
 import jax.numpy as jnp
+import diffrax as dx
+import time
 
 from ..core._utils import _astimearray
 from ..options import Options
+from .._utils import cdtype
 
-from .utils.warnings import warning_bad_TimeArray, warning_size_too_small
+
+from .utils.warnings import (
+    warning_bad_TimeArray,
+    warning_size_too_small,
+    check_in_max_truncature,
+    check_max_reshaping_reached,
+    check_not_under_truncature
+)
 from .degree_guesser import degree_guesser_nD_list
-from .reshapings import mask, projection_nD, dict_nD
-from .utils.utils import tensorisation_maker
+from .reshapings import mask, projection_nD, dict_nD, dict_nD_reshapings
+from .utils.utils import tensorisation_maker, find_approx_index
 from .inequalities import generate_rec_ineqs
+from .reshaping_y import (
+    error_reducing,
+    reshaping_extend,
+    reshapings_reduce,
+    reshaping_init
+)
+from .estimator import compute_estimator
+from ..utils.utils import dag
+
 
 def mesolve_estimator_init(options, H, jump_ops, tsave):
     # to init the arguments necessary for the estimator and the reshaping
@@ -51,67 +70,64 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
 def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings, rho_all
     , estimator_all, H, jump_ops, options, H_mod, jump_ops_mod, Hred_mod, 
     Lsred_mod, _mask_mod, tensorisation_mod, solver, ineq_set):
-    true_time = mesolve_iteration[1][jnp.isfinite(mesolve_iteration[1])]
-    true_steps = len(true_time)
-    last_state_index = max(0,true_steps - 2)
+    print(mesolve_iteration.infos)
+    true_time = mesolve_iteration._saved.time
+    true_steps = len(true_time) - 1
     dt0 = true_time[-1] - true_time[-2]
     print("dt0:", dt0)
-    new_steps = old_steps - find_approx_index(tsave, true_time[last_state_index]) + 1
-    new_tsave = jnp.linspace(true_time[last_state_index], tsave[-1], new_steps) 
+    new_steps = old_steps - find_approx_index(tsave, true_time[-2]) + 1
+    new_tsave = jnp.linspace(true_time[-2], tsave[-1], new_steps) 
     print(options.tensorisation)
     print(tensorisation_mod[-1])
-    rho_mod =  mesolve_iteration[2].rho[last_state_index]
-    estimator = mesolve_iteration[2].err[last_state_index]
+    rho_mod =  mesolve_iteration.states[-2]
+    print(mesolve_iteration.estimator)
+    estimator = jnp.zeros(1, cdtype())
+    estimator = estimator.at[0].set(mesolve_iteration.estimator[-2])
+    print(estimator)
     # useful to recompute the error to see if it was an extend or a reduce
-    rho_erreur = mesolve_iteration[2].rho[last_state_index + 1]
-    estimator_erreur = mesolve_iteration[2].err[last_state_index + 1]
-    rho_all.append(mesolve_iteration[2].rho[:true_steps])
-    estimator_all.append(mesolve_iteration[2].err[:true_steps])
+    rho_erreur = mesolve_iteration.states[-1]
+    estimator_erreur = mesolve_iteration.estimator[-1]
+    rho_all.append(mesolve_iteration.states[:-1])
+    estimator_all.append(mesolve_iteration.estimator[:-1])
 
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
         print("""WARNING: your space wasn't large enough to capture the dynamic up to
               the tolerance. Give a larger max space[link to what it means] or try to 
               see if your dynamic isn't exploding""")
-    elif dx.RESULTS.discrete_terminating_event_occurred==mesolve_iteration[-1]:
-        erreur_tol = (true_time[-1] * 
-            options.estimator_rtol * (solver.atol + 
-            jnp.linalg.norm(rho_erreur, ord='nuc') * solver.rtol)
-        )
-        if (estimator_erreur).real and not check_max_reshaping_reached(options, H_mod) >= erreur_tol:
-            L_reshapings.append(1)
-        if ((estimator_erreur).real + error_reducing(rho_erreur, options) <= 
-            erreur_tol/options.downsizing_rtol
-            and len(rho_erreur) > 100): # 100 bcs overhead too big to find useful to downsize such little matrices :
-            print("eeeeeee")
-            L_reshapings.append(-1)
-        print("error seuil en dehors", erreur_tol, estimator_erreur)
-    else:
-        L_reshapings.append(0)
+    erreur_tol = (true_time[-1] * 
+        options.estimator_rtol * (solver.atol + 
+        jnp.linalg.norm(rho_erreur, ord='nuc') * solver.rtol)
+    )
+    if (estimator_erreur).real and not check_max_reshaping_reached(options, H_mod) >= erreur_tol:
+        L_reshapings.append(1)
+    if ((estimator_erreur).real + error_reducing(rho_erreur, options) <= 
+        erreur_tol/options.downsizing_rtol
+        and len(rho_erreur) > 100): # 100 bcs overhead too big to find useful to downsize such little matrices :
+        print("reducing set")
+        L_reshapings.append(-1)
+    print("error seuil en dehors", erreur_tol, estimator_erreur)
     # print("estimator all qui charge:", estimator_all)
-
+    te0 = time.time()
     if (L_reshapings[-1]==1
     ):# and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
-        te0 = time.time()
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod) = (reshaping_extend(options, H, jump_ops, rho_mod,
         tensorisation_mod, true_time[-2], ineq_set)
         )
         print("temps du reshaping: ", time.time() - te0)
-        Lsred_mod_eval = jnp.stack([L(0) for L in Lsred_mod])
-        Lsd = dag(Lsred_mod_eval)
-        LdL = (Lsd @ Lsred_mod_eval).sum(0)
-        tmp = (-1j * Hred_mod(0) - 0.5 * LdL) @ rho_mod + 0.5 * (Lsred_mod_eval @ rho_mod @ Lsd).sum(0)
-        drho = tmp + dag(tmp)
-        print("estimator calculé:", estimator_derivate_opti_nD(drho, H_mod(0), 
-        jnp.stack([L(0) for L in jump_ops_mod]), rho_mod))
-    elif (L_reshapings[-1]==-1
-    ):
+        print("estimator calculé:", compute_estimator(
+            H_mod, jump_ops_mod,
+            Hred_mod, Lsred_mod,
+            rho_mod, true_time[-2])
+        )
+    elif (L_reshapings[-1]==-1):
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod) = (
             reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation_mod, 
             true_time[-2], ineq_set)
         )
+        print("temps du reshaping: ", time.time() - te0)
     print("estimator:", estimator,"time: ", true_time)
     print("L_reshapings:", L_reshapings)
     # print("Ls", [jump_ops_mod[0](0)[i][i].item() for i in range(len(jump_ops_mod[0](0)[0]))], "\n", [Lsred_mod[0](0)[i][i].item() for i in range(len(Lsred_mod[0](0)[0]))], "\nrho", [rho_mod[i][i].item() for i in range(len(rho_mod[0]))], "\n mask", _mask_mod[0], "\ntensor", tensorisation_mod, "\nest", true_estimator)

@@ -45,6 +45,7 @@ class Saved_estimator(Saved):
         self.estimator = estimator
         self.time = time
 
+
 class Result(eqx.Module):
     tsave: Array
     solver: Solver

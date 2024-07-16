@@ -10,7 +10,7 @@ def tensorisation_maker(lazy_tensorisation):
     # tensorisation, useful to make more complex truncature of the space
     # as an exemple (2, 3) should ouput ((0,0),(0,1),(0,2),(1,0),(1,1),(1,2)).
     tensorisation = (
-        tuple(itertools.product(*[range(dim) for dim in lazy_tensorisation]))
+        list(itertools.product(*[range(dim) for dim in lazy_tensorisation]))
     )
     return tensorisation
 
@@ -170,24 +170,24 @@ def add_trunc_size_vectors(tensorisation, trunc_size):
             tensorisation.append(tensor)
     return sorted(eliminate_duplicates(tensorisation))
                   
-def put_together_results(L, k, estimator = False):
+def put_together_results(L, k, rejoin = False):
     """
     The reshaping outputs some [0, 0.1, 0.2, 0.3, 0.4], [0.3, 0.4, 0.5, ...,  1.0] for a 
     jnp.linespace(0,1.0,11) for the time for instance.
     We would like to put together the lists (here in L) and cut the redundant parts,
     and they are k of them per end of lists (apart from the last) (here k = 2)
-    the output should be the [0, 0.1, 0.2, 0.3, 0.4, 0.5, ...,  1.0] if estimator
-    and [0, 0.1, 0.2] [0.3, ..., 1.0]  if not estimator (concatenate won't work for
+    the output should be the [0, 0.1, 0.2, 0.3, 0.4, 0.5, ...,  1.0] if rejoin
+    and [0, 0.1, 0.2] [0.3, ..., 1.0]  if not rejoin (concatenate won't work for
     list of matrices)
     """
     Lnew = []
     for i in range(len(L)-1):
-        if estimator: Lnew.append(L[i][:-k])
+        if rejoin: Lnew.append(L[i][:-k])
         else: Lnew.extend(L[i][:-k])
     # the last list should be taken as a whole
-    if estimator: Lnew.append(L[-1])
+    if rejoin: Lnew.append(L[-1])
     else: Lnew.extend(L[-1])
-    if estimator: Lnew = jnp.concatenate(Lnew)
+    if rejoin: Lnew = jnp.concatenate(Lnew)
     return Lnew
 
 def generate_square_indices_around(static_list, dimensions):

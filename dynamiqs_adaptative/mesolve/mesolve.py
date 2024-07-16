@@ -37,22 +37,24 @@ from .mediffrax import MEDopri5, MEDopri8, MEEuler, MEKvaerno3, MEKvaerno5, METs
 from .mepropagator import MEPropagator
 from .merouchon import MERouchon1
 
-# from ..a_posteriori.utils.mesolve_fcts import (
-    # mesolve_estimator_init,
-    # mesolve_iteration_prepare
-# )
-from ..estimator.saves import collect_saved_estimator
+from ..estimator.mesolve_fcts import (
+    mesolve_estimator_init,
+    mesolve_iteration_prepare
+)
+from ..estimator.saves import (
+    collect_saved_estimator, 
+    collect_saved_iteration,
+    collect_saved_reshapings_final
+)
 from ..estimator.mesolve_fcts import mesolve_estimator_init
 from ..estimator.utils.warnings import warning_estimator_tol_reached
-# from ..a_posteriori.utils.utils import find_approx_index, put_together_results
-# from ..a_posteriori.n_D.inequalities import *
-# from ..a_posteriori.n_D.reshapings import (
-#     reduction_nD, extension_nD, projection_nD, mask, dict_nD
-# )
-# from ..a_posteriori.n_D.reshaping_y import reshaping_init, reshaping_extend
-# from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
+from ..estimator.utils.utils import find_approx_index, put_together_results
+from ..estimator.reshapings import (
+    reduction_nD, extension_nD, projection_nD, mask, dict_nD
+)
+from ..estimator.reshaping_y import reshaping_init, reshaping_extend
 from ..utils.utils import dag
-from ..result import Result, Saved
+from ..result import Result, Saved, Saved_estimator
 import time
 
 __all__ = ['mesolve']
@@ -164,9 +166,13 @@ def mesolve(
         estimator_all = []
         rho_all = []
         while True: # do while syntax in Python
+            print("esti donnéééééé", estimator)
             mesolve_iteration = _vectorized_mesolve(
             H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, options
             , Hred_mod, Lsred_mod, _mask_mod, estimator, dt0
+            )
+            mesolve_iteration = collect_saved_iteration(
+                mesolve_iteration, estimator_all
             )
             (rho_all, estimator_all, L_reshapings, estimator, new_tsave, true_time,
             dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
@@ -178,9 +184,10 @@ def mesolve(
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # do while syntax
                 break
         # put the results in the usual dynamiqs format
-        mesolve_result = mesolve_iteration[3].result(
-        Saved(put_together_results(rho_all, 2), None, None, 
-        put_together_results(estimator_all, 2, True)), None)
+        print(mesolve_iteration)
+        mesolve_result = collect_saved_reshapings_final(
+            mesolve_iteration, rho_all, estimator_all
+        )
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects
         # (which are not JIT-compatible) to JAX arrays
