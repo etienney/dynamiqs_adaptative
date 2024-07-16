@@ -16,6 +16,7 @@ from .abstract_solver import BaseSolver
 from ..options import Options
 
 from .abstract_solver import State
+from ..estimator.saves import save_estimator
 from ..a_posteriori.utils.utils import prod
 from..a_posteriori.n_D.reshaping_y import check_max_reshaping_reached, error_reducing
 
@@ -24,6 +25,10 @@ from .._utils import cdtype
 
 
 class DiffraxSolver(BaseSolver):
+    # Subclasses should implement:
+    # - the attributes: stepsize_controller, dt0, max_steps, diffrax_solver, terms
+    # - the methods: result, infos
+
     stepsize_controller: dx.AbstractVar[dx.AbstractStepSizeController]
     dt0: dx.AbstractVar[float | None]
     max_steps: dx.AbstractVar[int]
@@ -41,13 +46,21 @@ class DiffraxSolver(BaseSolver):
             warnings.simplefilter('ignore', UserWarning)
 
             # === prepare diffrax arguments
-            fn = lambda t, y, args: self.save(y)  # noqa: ARG005
-            subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
-            subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
-            # to have solver times
-            subsaveat_c = dx.SubSaveAt(t0 =True, steps=True)
-            saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b, subsaveat_c])
-            # saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
+            if self.options.estimator:
+                subsaveat_a = dx.SubSaveAt(t0 =True, steps=True, fn=save_estimator)
+                saveat = dx.SaveAt(subs=[subsaveat_a])
+            elif not self.options.reshaping:
+                fn = lambda t, y, args: self.save(y)  # noqa: ARG005
+                subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
+                subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
+                saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
+            else:
+                fn = lambda t, y, args: self.save(y)  # noqa: ARG005
+                subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
+                subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
+                # to have solver times
+                subsaveat_c = dx.SubSaveAt(t0 =True, steps=True)
+                saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b, subsaveat_c])
 
             if self.gradient is None:
                 adjoint = dx.RecursiveCheckpointAdjoint()
@@ -98,23 +111,20 @@ class DiffraxSolver(BaseSolver):
                 adjoint=adjoint,
                 max_steps=self.max_steps,
                 progress_meter=self.options.progress_meter.to_diffrax(),
+                args = [self.H, self.Ls, self.Hred, self.Lsred, self._mask] 
             )
 
         # === collect and return results
-        # print(solution.ys)
-        save_a, save_b, save_c = solution.ys
-
-        # save_a, save_b = solution.ys
         if self.options.estimator:
-            # save also the estimator
-            saved = self.collect_saved(
-            save_a, [save_b.rho[0],save_b.err[0]]
-            )
-        else: 
+            # jax.debug.print("ee{e}", e = self.diffrax_solver.interpolation_cls)
+            saved = solution.ys[0]
+            return self.result(saved, infos=self.infos(solution.stats))
+        elif not self.options.reshaping:
+            save_a, save_b = solution.ys
             saved = self.collect_saved(save_a, save_b[0])
-        if not self.options.reshaping:
             return self.result(saved, infos=self.infos(solution.stats))
         else:
+            save_a, save_b, save_c = solution.ys
             # give additional infos needed for the reshaping
             # jax.debug.print("fin saved: {res}", res = self)
             # jax.debug.print("activation: {b}", b=solution.event_mask)

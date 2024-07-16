@@ -2,6 +2,7 @@ import jax.numpy as jnp
 import numpy as np
 import jax
 import itertools
+import math
 # from ..utils.utils import tuple_to_list
 
 def tensorisation_maker(lazy_tensorisation):
@@ -221,3 +222,10 @@ def excluded_numbers(ranges, max_index):
         for i in range(start, end + 1):
             excluded_set.add(i)
     return [num for num in range(max_index) if num not in excluded_set]
+
+def latest_non_inf_index(lst):
+    # find the latest elements in a list that is not inf
+    for i in range(len(lst) - 1, -1, -1):
+        if lst[i] != math.inf:
+            return i
+    return None  # If all elements are `inf`, return None

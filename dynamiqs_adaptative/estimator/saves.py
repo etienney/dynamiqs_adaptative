@@ -25,6 +25,8 @@ def collect_saved_estimator(results):
     true_steps = len(corrected_time)
     new_states = results.states.rho[:true_steps]
     new_dest = results.estimator[:true_steps]
+    # print("all pos ?", new_dest)
+    # print("ordered ?", corrected_time)
     est = integrate_euler(new_dest, corrected_time)
     new_save = Saved_estimator(new_states, None, None, est, corrected_time)
     tmp_dic['_saved'] = new_save
@@ -33,11 +35,13 @@ def collect_saved_estimator(results):
     results = MEResult(**filtered_tmp_dic)
     return results
 
-def integrate_euler(time, derivatives):
+def integrate_euler(derivatives, time):
     # Initialize the integral array
     integral = np.zeros_like(time)
     # Perform Euler integration
     for i in range(1, len(time)):
         dt = time[i] - time[i-1]
+        if dt<0:
+            print("raise alarms", time[i], time[i-1])
         integral[i] = integral[i-1] + derivatives[i-1] * dt
     return integral

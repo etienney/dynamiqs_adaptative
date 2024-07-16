@@ -36,6 +36,7 @@ class Saved(eqx.Module):
     extra: PyTree | None
 
 class Saved_estimator(Saved):
+    # save additional data needed to compute the estimator
     estimator: Array | None
     time: Array | None
     

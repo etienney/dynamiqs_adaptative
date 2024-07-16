@@ -37,19 +37,20 @@ from .mediffrax import MEDopri5, MEDopri8, MEEuler, MEKvaerno3, MEKvaerno5, METs
 from .mepropagator import MEPropagator
 from .merouchon import MERouchon1
 
-from ..a_posteriori.utils.mesolve_fcts import (
-    mesolve_estimator_init,
-    latest_non_inf_index,
-    mesolve_warning,
-    mesolve_iteration_prepare
-)
-from ..a_posteriori.utils.utils import find_approx_index, put_together_results
-from ..a_posteriori.n_D.inequalities import *
-from ..a_posteriori.n_D.reshapings import (
-    reduction_nD, extension_nD, projection_nD, mask, dict_nD
-)
-from ..a_posteriori.n_D.reshaping_y import reshaping_init, reshaping_extend
-from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
+# from ..a_posteriori.utils.mesolve_fcts import (
+    # mesolve_estimator_init,
+    # mesolve_iteration_prepare
+# )
+from ..estimator.saves import collect_saved_estimator
+from ..estimator.mesolve_fcts import mesolve_estimator_init
+from ..estimator.utils.warnings import warning_estimator_tol_reached
+# from ..a_posteriori.utils.utils import find_approx_index, put_together_results
+# from ..a_posteriori.n_D.inequalities import *
+# from ..a_posteriori.n_D.reshapings import (
+#     reduction_nD, extension_nD, projection_nD, mask, dict_nD
+# )
+# from ..a_posteriori.n_D.reshaping_y import reshaping_init, reshaping_extend
+# from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
 from ..utils.utils import dag
 from ..result import Result, Saved
 import time
@@ -136,7 +137,7 @@ def mesolve(
     dt0 = None
 
     # === estimator part
-    options, Hred, Lsred, _mask, inequalities, tensorisation = (
+    options, Hred, Lsred, _mask, tensorisation = (
         mesolve_estimator_init(options, H, jump_ops, tsave)
     )
 
@@ -189,7 +190,8 @@ def mesolve(
         )
     if options.estimator and not options.reshaping:
         # warn the user if the estimator's tolerance has been reached
-        mesolve_warning(mesolve_result, options, solver)
+        mesolve_result = collect_saved_estimator(mesolve_result)
+        warning_estimator_tol_reached(mesolve_result, options, solver)
     return mesolve_result
     
 @catch_xla_runtime_error
