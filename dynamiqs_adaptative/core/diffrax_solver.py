@@ -97,6 +97,7 @@ class DiffraxSolver(BaseSolver):
                 stepsize_controller=self.stepsize_controller,
                 adjoint=adjoint,
                 max_steps=self.max_steps,
+                progress_meter=self.options.progress_meter.to_diffrax(),
             )
 
         # === collect and return results
@@ -127,6 +128,10 @@ class DiffraxSolver(BaseSolver):
 
 
 class FixedSolver(DiffraxSolver):
+    # Subclasses should implement:
+    # - the attributes: diffrax_solver, terms
+    # - the methods: result
+
     class Infos(eqx.Module):
         nsteps: Array
 
@@ -154,6 +159,10 @@ class EulerSolver(FixedSolver):
 
 
 class AdaptiveSolver(DiffraxSolver):
+    # Subclasses should implement:
+    # - the attributes: diffrax_solver, terms
+    # - the methods: result
+
     class Infos(eqx.Module):
         nsteps: Array
         naccepted: Array
@@ -180,6 +189,7 @@ class AdaptiveSolver(DiffraxSolver):
             safety=self.solver.safety_factor,
             factormin=self.solver.min_factor,
             factormax=self.solver.max_factor,
+            jump_ts=self.discontinuity_ts,
         )
 
     @property
@@ -203,13 +213,10 @@ class Dopri8Solver(AdaptiveSolver):
 class Tsit5Solver(AdaptiveSolver):
     diffrax_solver = dx.Tsit5()
 
-# class TerminationEvent(dx.DiscreteTerminatingEvent):
-#     err_tm1:float
-#     def __init__(self):
-#         self.err_tm1=0
-#     def __call__(self, state, **kwargs):
-#         jax.debug.print("error verif: {a}", a=state.y.err)
-#         err_tm1=self.err_tm1
-#         self.err_tm1=state.y.err[0]
-#         jax.debug.print("error estim: {a}", a= (err_tm1[0]-state.y.err[0]).real)
-#         return (err_tm1[0]-state.y.err[0]).real >= 0.05
+
+class Kvaerno3Solver(AdaptiveSolver):
+    diffrax_solver = dx.Kvaerno3()
+
+
+class Kvaerno5Solver(AdaptiveSolver):
+    diffrax_solver = dx.Kvaerno5()

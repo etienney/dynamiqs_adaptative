@@ -8,8 +8,6 @@ from .gradient import Gradient
 from .options import Options
 from .solver import Solver
 
-
-
 __all__ = ['SEResult', 'MEResult']
 
 
@@ -36,8 +34,15 @@ class Saved(eqx.Module):
     ysave: Array
     Esave: Array | None
     extra: PyTree | None
-    estimator: Array | None
 
+class Saved_estimator(Saved):
+    estimator: Array | None
+    time: Array | None
+    
+    def __init__(self, ysave, Esave, extra, estimator, time):
+        super().__init__(ysave, Esave, extra)
+        self.estimator = estimator
+        self.time = time
 
 class Result(eqx.Module):
     tsave: Array
@@ -52,21 +57,21 @@ class Result(eqx.Module):
         return self._saved.ysave
 
     @property
-    def estimator(self) -> Array:
-        if self.options.estimator:
-            return self._saved.estimator
-        else:
-            raise ValueError('Calling estimator without using it does not make sense. '
-                             'Try putting \'options = dq.Options(estimator=True)\'')
-
-    @property
     def expects(self) -> Array | None:
         return self._saved.Esave
 
     @property
     def extra(self) -> PyTree | None:
         return self._saved.extra
-
+    
+    @property
+    def estimator(self) -> Array:
+        if self.options.estimator:
+            return self._saved.estimator
+        else:
+            raise ValueError('Calling estimator without using it does not make sense. '
+                             'Try putting \'options = dq.Options(estimator=True)\'')
+        
     def _str_parts(self) -> dict[str, str]:
         if self.options.estimator:
             if self.options.tensorisation is None:
@@ -81,31 +86,28 @@ class Result(eqx.Module):
                 # print it in a nicer way, without the "Array"
                 simu_size = tuple(arr.item() for arr in simu_size)
                 given_size = tuple(arr.item() for arr in given_size)
-            if self.options.save_states:
-                estimator = (self.estimator[-1][0]).real 
-            else:
-                estimator = (self.estimator[0]).real 
+            estimator = self.estimator[-1]
 
         return {
             'Solver  ': type(self.solver).__name__,
             'Gradient': (
                 type(self.gradient).__name__ if self.gradient is not None else None
             ),
-            'States  ': array_str(self.states) if not self.options.reshaping else None,
+            'States  ': array_str(self.states) ,
             'Estimator ': (
                 estimator if self.options.estimator else None
             ),
             'Simulation size ': (
-                simu_size if self.options.estimator and not self.options.reshaping else None
+                simu_size if self.options.estimator else None
             ),
             'Original size ': (
-                given_size if self.options.estimator and not self.options.reshaping else None
+                given_size if self.options.estimator else None
             ),
             'Expects ': array_str(self.expects),
             'Extra   ': (
                 eqx.tree_pformat(self.extra) if self.extra is not None else None
             ),
-            'Infos   ': self.infos if self.infos is not None and not self.options.reshaping else None,
+            'Infos   ': self.infos if self.infos is not None else None,
         }
 
     def __str__(self) -> str:
@@ -124,23 +126,55 @@ class Result(eqx.Module):
 
     def to_numpy(self) -> Result:
         raise NotImplementedError
-    
 
 
 class SEResult(Result):
-    """Result of the Schrödinger equation integration.
+    r"""Result of the Schrödinger equation integration.
 
     Attributes:
-        states _(array of shape (nH?, npsi0?, ntsave, n, 1))_: Saved states.
-        expects _(array of shape (nH?, npsi0?, nE, ntsave) or None)_: Saved expectation
-            values, if specified by `exp_ops`.
+        states _(array of shape (..., ntsave, n, 1))_: Saved states.
+        expects _(array of shape (..., len(exp_ops), ntsave) or None)_: Saved
+            expectation values, if specified by `exp_ops`.
         extra _(PyTree or None)_: Extra data saved with `save_extra()` if
-            specified in `options`.
+            specified in `options` (see [`dq.Options`][dynamiqs.Options]).
         infos _(PyTree or None)_: Solver-dependent information on the resolution.
         tsave _(array of shape (ntsave,))_: Times for which results were saved.
         solver _(Solver)_: Solver used.
         gradient _(Gradient)_: Gradient used.
         options _(Options)_: Options used.
+
+    Note-: Result of running multiple simulations concurrently
+        The resulting states and expectation values are batched according to the
+        leading dimensions of the Hamiltonian `H` and initial state `psi0`. The
+        behaviour depends on the value of the `cartesian_batching` option
+
+        === "If `cartesian_batching = True` (default value)"
+            The results leading dimensions are
+            ```
+            ... = ...H, ...psi0
+            ```
+            For example if:
+
+            - `H` has shape _(2, 3, n, n)_,
+            - `psi0` has shape _(4, n, 1)_,
+
+            then `states` has shape _(2, 3, 4, ntsave, n, 1)_.
+
+        === "If `cartesian_batching = False`"
+            The results leading dimensions are
+            ```
+            ... = ...H = ...psi0  # (once broadcasted)
+            ```
+            For example if:
+
+            - `H` has shape _(2, 3, n, n)_,
+            - `psi0` has shape _(3, n, 1)_,
+
+            then `states` has shape _(2, 3, ntsave, n, 1)_.
+
+        See the
+        [Batching simulations](../../documentation/basics/batching-simulations.md)
+        tutorial for more details.
     """
 
 
@@ -148,14 +182,49 @@ class MEResult(Result):
     """Result of the Lindblad master equation integration.
 
     Attributes:
-        states _(array of shape (nH?, nrho0?, ntsave, n, n))_: Saved states.
-        expects _(array of shape (nH?, nrho0?, nE, ntsave) or None)_: Saved expectation
-            values, if specified by `exp_ops`.
+        states _(array of shape (..., ntsave, n, n))_: Saved states.
+        expects _(array of shape (..., len(exp_ops), ntsave) or None)_: Saved
+            expectation values, if specified by `exp_ops`.
         extra _(PyTree or None)_: Extra data saved with `save_extra()` if
-            specified in `options`.
+            specified in `options` (see [`dq.Options`][dynamiqs.Options]).
         infos _(PyTree or None)_: Solver-dependent information on the resolution.
         tsave _(array of shape (ntsave,))_: Times for which results were saved.
         solver _(Solver)_: Solver used.
         gradient _(Gradient)_: Gradient used.
         options _(Options)_: Options used.
+
+    Note-: Result of running multiple simulations concurrently
+        The resulting states and expectation values are batched according to the
+        leading dimensions of the Hamiltonian `H`, jump operators `jump_ops` and initial
+        state `rho0`. The behaviour depends on the value of the `cartesian_batching`
+        option
+
+        === "If `cartesian_batching = True` (default value)"
+            The results leading dimensions are
+            ```
+            ... = ...H, ...L0, ...L1, (...), ...rho0
+            ```
+            For example if:
+
+            - `H` has shape _(2, 3, n, n)_,
+            - `jump_ops = [L0, L1]` has shape _[(4, 5, n, n), (6, n, n)]_,
+            - `rho0` has shape _(7, n, n)_,
+
+            then `states` has shape _(2, 3, 4, 5, 6, 7, ntsave, n, n)_.
+        === "If `cartesian_batching = False`"
+            The results leading dimensions are
+            ```
+            ... = ...H = ...L0 = ...L1 = (...) = ...rho0  # (once broadcasted)
+            ```
+            For example if:
+
+            - `H` has shape _(2, 3, n, n)_,
+            - `jump_ops = [L0, L1]` has shape _[(3, n, n), (2, 1, n, n)]_,
+            - `rho0` has shape _(3, n, n)_,
+
+            then `states` has shape _(2, 3, ntsave, n, n)_.
+
+        See the
+        [Batching simulations](../../documentation/basics/batching-simulations.md)
+        tutorial for more details.
     """

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import diffrax as dx
 import jax.numpy as jnp
 import jax
@@ -19,12 +21,18 @@ from ..time_array import TimeArray
 from ..core.abstract_solver import State
 import time
 
+
+import diffrax as dx
+import jax.numpy as jnp
+
 from ..core.abstract_solver import MESolver
 from ..core.diffrax_solver import (
     DiffraxSolver,
     Dopri5Solver,
     Dopri8Solver,
     EulerSolver,
+    Kvaerno3Solver,
+    Kvaerno5Solver,
     Tsit5Solver,
 )
 from ..utils.utils import dag
@@ -123,7 +131,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             return dx.ODETerm(vector_field)
 
 class MEEuler(MEDiffraxSolver, EulerSolver):
-    pass 
+    pass
 
 
 class MEDopri5(MEDiffraxSolver, Dopri5Solver):
@@ -135,4 +143,12 @@ class MEDopri8(MEDiffraxSolver, Dopri8Solver):
 
 
 class METsit5(MEDiffraxSolver, Tsit5Solver):
+    pass
+
+
+class MEKvaerno3(MEDiffraxSolver, Kvaerno3Solver):
+    pass
+
+
+class MEKvaerno5(MEDiffraxSolver, Kvaerno5Solver):
     pass

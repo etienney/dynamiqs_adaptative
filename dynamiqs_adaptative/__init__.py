@@ -8,8 +8,8 @@ from .solvers import *
 from .time_array import *
 from .utils import *
 
-from .a_posteriori import *
-from .time_array import TimeArray
-
 # get version from pyproject.toml
 __version__ = version(__package__)
+
+# set default matmul precision to 'highest'
+set_matmul_precision('highest')

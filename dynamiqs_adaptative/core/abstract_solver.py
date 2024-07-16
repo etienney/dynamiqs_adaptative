@@ -6,6 +6,7 @@ import equinox as eqx
 from jax import Array
 from jaxtyping import PyTree, Scalar
 
+from .._utils import _concatenate_sort
 from ..gradient import Gradient
 from ..options import Options
 from ..result import MEResult, Result, Saved, SEResult
@@ -58,7 +59,7 @@ class BaseSolver(AbstractSolver):
             extra = self.options.save_extra(rho)
         if self.options.estimator and self.options.save_states:
             estimator = y.err
-        return Saved(ysave, Esave, extra, estimator)
+        return Saved(ysave, Esave, extra)
 
     def collect_saved(self, saved: Saved, ylast: Array) -> Saved:
         # if save_states is False save only last state
@@ -102,3 +103,7 @@ class MESolver(BaseSolver):
     def result(self, saved: Saved, infos: PyTree | None = None) -> Result:
         return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)
 
+    @property
+    def discontinuity_ts(self) -> Array | None:
+        ts = [x.discontinuity_ts for x in [self.H, *self.Ls]]
+        return _concatenate_sort(*ts)

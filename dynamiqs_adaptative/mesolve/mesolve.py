@@ -12,18 +12,30 @@ from .._checks import check_shape, check_times
 from .._utils import cdtype
 from ..core._utils import (
     _astimearray,
-    compute_vmap,
+    _cartesian_vectorize,
+    _flat_vectorize,
+    catch_xla_runtime_error,
     get_solver_class,
-    is_timearray_batched,
 )
 from ..gradient import Gradient
 from ..options import Options
 from ..result import MEResult
-from ..solver import Dopri5, Dopri8, Euler, Propagator, Solver, Tsit5
-from ..time_array import TimeArray
+from ..solver import (
+    Dopri5,
+    Dopri8,
+    Euler,
+    Kvaerno3,
+    Kvaerno5,
+    Propagator,
+    Rouchon1,
+    Solver,
+    Tsit5,
+)
+from ..time_array import Shape, TimeArray
 from ..utils.utils import todm
-from .mediffrax import MEDopri5, MEDopri8, MEEuler, METsit5
+from .mediffrax import MEDopri5, MEDopri8, MEEuler, MEKvaerno3, MEKvaerno5, METsit5
 from .mepropagator import MEPropagator
+from .merouchon import MERouchon1
 
 from ..a_posteriori.utils.mesolve_fcts import (
     mesolve_estimator_init,
@@ -151,7 +163,7 @@ def mesolve(
         estimator_all = []
         rho_all = []
         while True: # do while syntax in Python
-            mesolve_iteration = _vmap_mesolve(
+            mesolve_iteration = _vectorized_mesolve(
             H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, options
             , Hred_mod, Lsred_mod, _mask_mod, estimator, dt0
             )
@@ -171,7 +183,7 @@ def mesolve(
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects
         # (which are not JIT-compatible) to JAX arrays
-        mesolve_result = _vmap_mesolve(
+        mesolve_result = _vectorized_mesolve(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
             , Hred, Lsred, _mask, estimator, dt0
         )
@@ -180,9 +192,9 @@ def mesolve(
         mesolve_warning(mesolve_result, options, solver)
     return mesolve_result
     
-
+@catch_xla_runtime_error
 @partial(jax.jit, static_argnames=('solver', 'gradient', 'options'))
-def _vmap_mesolve(
+def _vectorized_mesolve(
     H: TimeArray,
     jump_ops: list[TimeArray],
     rho0: Array,
@@ -199,27 +211,45 @@ def _vmap_mesolve(
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized
-    is_batched = (
-        is_timearray_batched(H),
-        [is_timearray_batched(jump_op) for jump_op in jump_ops],
-        rho0.ndim > 2,
-        False,
-        False,
-        False,
-        False,
-        False,
-        is_timearray_batched(Hred) if Hred is not None else False,
-        [is_timearray_batched(L) for L in Lsred] if Lsred is not None else False,
-        False,
-        False, # estimateur = False ?
-        False,
-    )
+    # `n_batch` is a pytree. Each leaf of this pytree gives the number of times
+    # this leaf should be vmapped on.
 
     # the result is vectorized over `_saved` and `infos`
-    out_axes = MEResult(None, None, None, None, 0, 0)
+    out_axes = MEResult(False, False, False, False, 0, 0)
+    
+    if not options.cartesian_batching:
+        broadcast_shape = jnp.broadcast_shapes(
+            H.shape[:-2], rho0.shape[:-2], *[jump_op.shape[:-2] for jump_op in jump_ops]
+        )
 
+        def broadcast(x: TimeArray) -> TimeArray:
+            return x.broadcast_to(*(broadcast_shape + x.shape[-2:]))
+
+        H = broadcast(H)
+        jump_ops = list(map(broadcast, jump_ops))
+        rho0 = jnp.broadcast_to(rho0, broadcast_shape + rho0.shape[-2:])
+
+    n_batch = (
+        H.in_axes,
+        [jump_op.in_axes for jump_op in jump_ops],
+        Shape(rho0.shape[:-2]),
+        Shape(),
+        Shape(),
+        Shape(),
+        Shape(),
+        Shape(),
+        Shape(),
+        Shape(),
+        Shape(),
+        Shape(),
+        Shape()
+    )
+    
     # compute vectorized function with given batching strategy
-    f = compute_vmap(_mesolve, options.cartesian_batching, is_batched, out_axes)
+    if options.cartesian_batching:
+        f = _cartesian_vectorize(_mesolve, n_batch, out_axes)
+    else:
+        f = _flat_vectorize(_mesolve, n_batch, out_axes)
 
     # === apply vectorized function
     return f(
@@ -246,9 +276,12 @@ def _mesolve(
     # === select solver class
     solvers = {
         Euler: MEEuler,
+        Rouchon1: MERouchon1,
         Dopri5: MEDopri5,
         Dopri8: MEDopri8,
         Tsit5: METsit5,
+        Kvaerno3: MEKvaerno3,
+        Kvaerno5: MEKvaerno5,
         Propagator: MEPropagator,
     }
     solver_class = get_solver_class(solvers, solver)
