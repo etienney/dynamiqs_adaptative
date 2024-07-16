@@ -1,9 +1,9 @@
-from ...a_posteriori.n_D.reshapings import (
+from ..n_D.reshaping_y import (
     reshaping_extend, check_max_reshaping_reached, error_reducing, reshapings_reduce
 )
 from ..one_D.degree_guesser_1D import degree_guesser_list
 from ..n_D.degree_guesser_nD import degree_guesser_nD_list
-from ..n_D.projection_nD import projection_nD, dict_nD, mask
+from ..n_D.reshapings import projection_nD, dict_nD, mask
 from ..n_D.tensorisation_maker import tensorisation_maker
 from ..n_D.inequalities import generate_rec_ineqs
 from ...core._utils import _astimearray

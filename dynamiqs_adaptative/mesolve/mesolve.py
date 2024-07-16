@@ -33,10 +33,10 @@ from ..a_posteriori.utils.mesolve_fcts import (
 )
 from ..a_posteriori.utils.utils import find_approx_index, put_together_results
 from ..a_posteriori.n_D.inequalities import *
-from ..a_posteriori.n_D.projection_nD import (
+from ..a_posteriori.n_D.reshapings import (
     reduction_nD, extension_nD, projection_nD, mask, dict_nD
 )
-from ..a_posteriori.n_D.reshapings import reshaping_init, reshaping_extend
+from ..a_posteriori.n_D.reshaping_y import reshaping_init, reshaping_extend
 from ..a_posteriori.n_D.estimator_derivate_nD import estimator_derivate_opti_nD
 from ..utils.utils import dag
 from ..result import Result, Saved

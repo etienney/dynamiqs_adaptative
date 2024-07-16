@@ -13,7 +13,7 @@ from ..a_posteriori.n_D.estimator_derivate_nD import (
     estimator_derivate_simple_nD, estimator_derivate_opti_nD
 )
 from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
-from ..a_posteriori.n_D.projection_nD import projection_nD
+from ..a_posteriori.n_D.reshapings import projection_nD
 from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
 from ..time_array import TimeArray
 from ..core.abstract_solver import State
@@ -69,7 +69,6 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             H = self.Hred(t)
             Ls = jnp.stack([L(t) for L in self.Lsred])
             t13 = time.time()
-            Ls = jnp.stack(Ls)
             Lsd = dag(Ls)
             LdL = (Lsd @ Ls).sum(0)
             t2 = time.time()

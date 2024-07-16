@@ -17,7 +17,7 @@ from ..options import Options
 
 from .abstract_solver import State
 from ..a_posteriori.utils.utils import prod
-from..a_posteriori.n_D.reshapings import check_max_reshaping_reached, error_reducing
+from..a_posteriori.n_D.reshaping_y import check_max_reshaping_reached, error_reducing
 
 from .._utils import cdtype
 
