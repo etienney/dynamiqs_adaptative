@@ -17,9 +17,7 @@ from ..options import Options
 
 from .abstract_solver import State
 from ..estimator.saves import save_estimator
-from ..a_posteriori.utils.utils import prod
-from..a_posteriori.n_D.reshaping_y import check_max_reshaping_reached, error_reducing
-
+from ..estimator.utils.warnings import check_max_reshaping_reached
 from .._utils import cdtype
 
 
