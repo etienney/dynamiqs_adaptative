@@ -6,19 +6,8 @@ import jax
 import equinox as eqx
 from jaxtyping import Array
 
-from ..a_posteriori.one_D.extension_1D import extension_1D
-from ..a_posteriori.one_D.reduction_1D import reduction_1D
-from ..a_posteriori.one_D.estimator_derivate_1D import (
-    estimator_derivate_simple, estimator_derivate_opti
-)
-from ..a_posteriori.n_D.estimator_derivate_nD import (
-    estimator_derivate_simple_nD, estimator_derivate_opti_nD
-)
-from ..a_posteriori.one_D.degree_guesser_1D import degree_guesser_list
-from ..a_posteriori.n_D.reshapings import projection_nD
-from ..a_posteriori.n_D.tensorisation_maker import tensorisation_maker
-from ..time_array import TimeArray
 from ..core.abstract_solver import State
+from ..estimator.reshapings import projection_nD
 import time
 
 
@@ -61,58 +50,26 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
         # and is thus more efficient numerically with only a negligible numerical error
         # induced on the dynamics.
 
+
         def vector_field_estimator_nD(t, y: State, _):
-            # run the simulation for a smaller size than the defined tensorisation..
+            # run the simulation for a smaller size than the defined tensorisation.
             # instead of really reducing the operators to a smaller sized space, we will
             # project all of them on a smaller sized space (the result is the same)
-            t1 = time.time()    
-            y_true = y.rho
-            GLs = jnp.stack([L(t) for L in self.Ls])
-            GH = self.H(t)
-            rho = projection_nD(
-                [y_true], None, None, None, self._mask
-            )[0]
-            t121 = time.time()
+            t0 = time.time()    
+            y_true = jnp.array(y.rho)
+            rho = projection_nD(y_true, self._mask)
+            t1 = time.time()
             # jax.debug.print("{a}", a= t121-t120)
-            H = self.Hred(t)
-            Ls = jnp.stack([L(t) for L in self.Lsred])
-            t13 = time.time()
-            Lsd = dag(Ls)
-            LdL = (Lsd @ Ls).sum(0)
+            Hred = self.Hred(t)
+            Lsred = jnp.stack([L(t) for L in self.Lsred])
             t2 = time.time()
-            tmp = (-1j * H - 0.5 * LdL) @ rho + 0.5 * (Ls @ rho @ Lsd).sum(0)
+            Lsd = dag(Lsred)
+            LdL = (Lsd @ Lsred).sum(0)
+            tmp = (-1j * Hred - 0.5 * LdL) @ rho + 0.5 * (Lsred @ rho @ Lsd).sum(0)
             drho = tmp + dag(tmp)
             t3 = time.time()
-            derr = estimator_derivate_opti_nD(
-                drho, GH, GLs, rho
-            )
-            jax.debug.print("err instantanée de diffrax: {derr} à {t}", derr=derr, t=t)
-            t4 = time.time()
-            # jax.debug.print("{z}, {e}", z =t3-t2, e=t4-t3)
-            return State(drho, derr)
-
-        def vector_field_estimator_1D(t, y: State, _):  # noqa: ANN001, ANN202
-            # run the simulation for the size n-k (k defined in the function from where
-            # it is called), and add an estimator of the error made by truncating
-            y_true = y.rho
-            N,temp = y_true.shape
-            # guessing the degree of the polynomial. if H and L are time dependant,
-            # it should be executed at each t... not really efficient though     
-            k = self.options.trunc_size
-            Ls = jnp.stack([reduction_1D(L(t),N-k) for L in self.Ls])
-            H = reduction_1D(self.H(t),N-k)
-            rho = reduction_1D(y_true,N-k)
-            rho_N = extension_1D(rho,N)
-
-            Lsd = dag(Ls)
-            LdL = (Lsd @ Ls).sum(0)
-            tmp = (-1j * H - 0.5 * LdL) @ rho + 0.5 * (Ls @ rho @ Lsd).sum(0)
-
-            drho = extension_1D(tmp + dag(tmp),N)
-            derr = estimator_derivate_opti(rho_N, self.Ls, self.H(t), t, N, k)
-            # jax.debug.print('erreur instantanée : {res}', res=derr)
-            # jax.debug.print('erreur totale : {res}', res=y.err)
-
+            derr = 0
+            # jax.debug.print("{a} et {b}", a= t1-t0, b = t3-t1)
             return State(drho, derr)
 
         def vector_field(t, y, _):  # noqa: ANN001, ANN202
@@ -123,10 +80,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             return tmp + dag(tmp)
         
         if self.options.estimator:
-            if self.options.tensorisation is not None:
-                return dx.ODETerm(vector_field_estimator_nD) 
-            else:
-                return dx.ODETerm(vector_field_estimator_1D)
+            return dx.ODETerm(vector_field_estimator_nD) 
         else:
             return dx.ODETerm(vector_field)
 

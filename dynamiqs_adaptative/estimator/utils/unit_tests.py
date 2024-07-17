@@ -657,3 +657,22 @@ def unit_test_degree_guesser_nD():
 
 
 
+# === test all unit tests
+def run_all_tests():
+    tests = [
+        unit_test_mesolve_estimator_init,
+        unit_test_reshaping_init,
+        unit_test_reshaping_extend,
+        unit_test_error_reducing,
+        unit_test_reshaping_reduce,
+        unit_test_projection_nD,
+        unit_test_reduction_nD,
+        unit_test_extension_nD,
+        unit_test_degree_guesser_nD,
+    ]
+    all_passed = True
+    for test in tests:
+        if not test():
+            print(f"{test.__name__} failed")
+            all_passed = False
+    return all_passed

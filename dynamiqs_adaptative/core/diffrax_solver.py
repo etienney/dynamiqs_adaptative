@@ -21,7 +21,6 @@ from ..estimator.utils.warnings import check_max_reshaping_reached
 from .._utils import cdtype
 
 
-
 class DiffraxSolver(BaseSolver):
     # Subclasses should implement:
     # - the attributes: stepsize_controller, dt0, max_steps, diffrax_solver, terms
