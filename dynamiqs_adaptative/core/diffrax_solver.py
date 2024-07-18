@@ -45,16 +45,12 @@ class DiffraxSolver(BaseSolver):
             # === prepare diffrax arguments
             if self.options.estimator:
                 subsaveat_a = dx.SubSaveAt(t0 =True, steps=True, fn=save_estimator)
-                saveat = dx.SaveAt(subs=[subsaveat_a])
-            elif not self.options.reshaping:
+                saveat = dx.SaveAt(subs=[subsaveat_a], controller_state = True)
+            else:
                 fn = lambda t, y, args: self.save(y)  # noqa: ARG005
                 subsaveat_a = dx.SubSaveAt(ts=self.ts, fn=fn)  # save solution regularly
                 subsaveat_b = dx.SubSaveAt(t1=True)  # save last state
                 saveat = dx.SaveAt(subs=[subsaveat_a, subsaveat_b])
-            else:
-                fn = lambda t, y, args: self.save(y)  # noqa: ARG005
-                subsaveat_c = dx.SubSaveAt(t0 =True, steps=True)
-                saveat = dx.SaveAt(subs=[subsaveat_c])
 
             if self.gradient is None:
                 adjoint = dx.RecursiveCheckpointAdjoint()
@@ -111,7 +107,10 @@ class DiffraxSolver(BaseSolver):
                 stepsize_controller=self.stepsize_controller,
                 adjoint=adjoint,
                 max_steps=self.max_steps,
-                progress_meter=self.options.progress_meter.to_diffrax(), 
+                progress_meter= (
+                    self.options.progress_meter.to_diffrax() 
+                    if not self.options.reshaping else dx.NoProgressMeter()
+                ), 
                 args = [self.H, self.Ls, self.Hred, self.Lsred, self._mask] 
             )
 
@@ -127,7 +126,7 @@ class DiffraxSolver(BaseSolver):
         else:
             saved = solution.ys[0]
             # give additional infos needed for the reshaping
-            # jax.debug.print("fin saved: {res}", res = self)
+            # jax.debug.print("fin saved: {res}", res = solution.stats)
             return self.result(saved, infos=self.infos(solution.stats))
             # return [self.result(saved, infos=self.infos(solution.stats)), 
             #     solution.ts[-1], save_c, self, solution.result,

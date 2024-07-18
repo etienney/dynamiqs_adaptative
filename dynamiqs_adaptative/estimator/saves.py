@@ -26,8 +26,6 @@ def collect_saved_estimator(results):
     true_steps = len(corrected_time)
     new_states = results.states.rho[:true_steps]
     new_dest = results.estimator[:true_steps]
-    # print("all pos ?", new_dest)
-    # print("ordered ?", corrected_time)
     est = integrate_euler(new_dest, corrected_time)
     new_save = Saved_estimator(new_states, None, None, est, corrected_time)
     tmp_dic['_saved'] = new_save
@@ -49,6 +47,7 @@ def collect_saved_iteration(results, estimator_all):
         est = integrate_euler(new_dest, corrected_time)
     else:
         est = integrate_euler(new_dest, corrected_time, estimator_all[-1][-1])
+    print("output estimators (der, int, time)!:",new_dest, est, corrected_time)
     new_save = Saved_estimator(new_states, None, None, est, corrected_time)
     tmp_dic['_saved'] = new_save
     required_params = ['tsave', 'solver', 'gradient', 'options', '_saved', 'infos']

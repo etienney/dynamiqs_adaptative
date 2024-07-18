@@ -70,20 +70,19 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
 def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings, rho_all
     , estimator_all, H, jump_ops, options, H_mod, jump_ops_mod, Hred_mod, 
     Lsred_mod, _mask_mod, tensorisation_mod, solver, ineq_set):
-    print(mesolve_iteration.infos)
+    print("infos sur la run", mesolve_iteration.infos)
     true_time = mesolve_iteration._saved.time
     true_steps = len(true_time) - 1
     dt0 = true_time[-1] - true_time[-2]
     print("dt0:", dt0)
     new_steps = old_steps - find_approx_index(tsave, true_time[-2]) + 1
     new_tsave = jnp.linspace(true_time[-2], tsave[-1], new_steps) 
-    print(options.tensorisation)
-    print(tensorisation_mod[-1])
+    print("tensorisation max", options.tensorisation)
+    print("largest tens reached", tensorisation_mod[-1])
     rho_mod =  mesolve_iteration.states[-2]
-    print(mesolve_iteration.estimator)
     estimator = jnp.zeros(1, cdtype())
     estimator = estimator.at[0].set(mesolve_iteration.estimator[-2])
-    print(estimator)
+    print("we restart with this base value", estimator)
     # useful to recompute the error to see if it was an extend or a reduce
     rho_erreur = mesolve_iteration.states[-1]
     estimator_erreur = mesolve_iteration.estimator[-1]
@@ -101,12 +100,11 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     )
     if (estimator_erreur).real and not check_max_reshaping_reached(options, H_mod) >= erreur_tol:
         L_reshapings.append(1)
-    if ((estimator_erreur).real + error_reducing(rho_erreur, options) <= 
+    elif ((estimator_erreur).real + error_reducing(rho_erreur, options) <= 
         erreur_tol/options.downsizing_rtol
         and len(rho_erreur) > 100): # 100 bcs overhead too big to find useful to downsize such little matrices :
         print("reducing set")
         L_reshapings.append(-1)
-    print("error seuil en dehors", erreur_tol, estimator_erreur)
     # print("estimator all qui charge:", estimator_all)
     te0 = time.time()
     if (L_reshapings[-1]==1

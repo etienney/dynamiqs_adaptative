@@ -93,12 +93,15 @@ def reshaping_extend(
     ):
     H = H(t)
     Ls = jnp.stack([L(t) for L in Ls])
+    old_inequalities = ineq_from_params(ineq_set, [options.inequalities[i][1] for i in 
+        range(len(options.inequalities))]
+    )
     options = update_ineq(options, direction='up')
     inequalities = ineq_from_params(ineq_set, [options.inequalities[i][1] for i in 
         range(len(options.inequalities))]
     )
     temp = extension_nD(
-        [rho], options, inequalities
+        [rho], options, inequalities, tensorisation
     )
     rho_mod = jnp.array(temp[0])[0]
     tensorisation = temp[1]

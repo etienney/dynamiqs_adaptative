@@ -108,7 +108,7 @@ def red_ext_full(objs, tensorisation, inequalities, options):
 
 
 def extension_nD(
-        objs, options, inequalities
+        objs, options, inequalities, old_tensorisation
 ):
     """
     Extend the objs up to the max_tensorisation by putting zeros cols and rows in spots
@@ -126,18 +126,20 @@ def extension_nD(
     objs: list of matrices with zeros placed.
     """
     ineq_to_tensors = extended_tensorisation(inequalities, options)
-    # print("tensorisation aprés:", ineq_to_tensors)
+    old_positions, new_positions = find_contiguous_ranges(old_tensorisation, ineq_to_tensors)
     len_new_objs = len(ineq_to_tensors)
-    reverse_dictio = reverse_indices(dict_nD_reshapings(ineq_to_tensors, inequalities, 
-        options), len_new_objs - 1
-    )
-    new_positions = split_contiguous_indices(reverse_dictio)
-    old_positions = shift_ranges(new_positions)
-    # print("old positions:",old_positions, "new positions:", new_positions, len_new_objs)
-    # print(objs)
+    # reverse_dictio = reverse_indices(dict_nD_reshapings(ineq_to_tensors, old_inequalities, 
+    #     options), len_new_objs - 1
+    # )
+    # new_positions = split_contiguous_indices(reverse_dictio)
+    # old_positions = shift_ranges(new_positions)
     zeros_obj = jnp.zeros((len_new_objs, len_new_objs), cdtype())
-    jaxed_extension = jax.jit(lambda objs: extension(objs, new_positions, old_positions, zeros_obj))
+    # print(old_positions, new_positions, len_new_objs, len(objs[0]))
+    jaxed_extension = jax.jit(
+        lambda objs: extension(objs, new_positions, old_positions, zeros_obj)
+    )
     return jaxed_extension(objs), ineq_to_tensors, options
+    return extension(objs, new_positions, old_positions, zeros_obj), ineq_to_tensors, options
 
 
 def extension(objs, new_positions, old_positions, zeros_obj):
@@ -151,7 +153,14 @@ def extension(objs, new_positions, old_positions, zeros_obj):
         new_obj = zeros_obj[:]
         for i in range(len_pos):
             for j in range(len_pos):
-                new_obj = new_obj.at[new_positions[i][0]:new_positions[i][1]+1, 
+                # print(
+                #     range(new_positions[i][0],new_positions[i][1]+1),
+                #     range(new_positions[j][0],new_positions[j][1]+1),
+                #     range(old_positions[i][0],old_positions[i][1]+1),
+                #     range(old_positions[j][0],old_positions[j][1]+1)
+                # )
+                new_obj = new_obj.at[
+                    new_positions[i][0]:new_positions[i][1]+1, 
                     new_positions[j][0]:new_positions[j][1]+1].set(
                     obj[old_positions[i][0]:old_positions[i][1]+1, 
                     old_positions[j][0]:old_positions[j][1]+1]

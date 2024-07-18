@@ -293,7 +293,7 @@ def unit_test_extension_nD():
             trunc_size)
         ]
         full_inequalities = generate_rec_ineqs(full_ineq_params)
-        print()
+        old_inequalities = generate_rec_ineqs(ineqs_params)
         up = trunc_size
         down= trunc_size
         options = Options(
@@ -309,7 +309,7 @@ def unit_test_extension_nD():
         #     "\ntensorisation init:", tensorisation_maker(lazy_tensorisation), 
         #     "\nobj initial:", objs[0][0]
         # )
-        temp = extension_nD(objs, options, full_inequalities)
+        temp = extension_nD(objs, options, full_inequalities, tensorisation_maker(lazy_tensorisation))
         # print("extension", temp[0][0][0])
         return temp
     
@@ -346,6 +346,8 @@ def unit_test_extension_nD():
         0., 0., 0., 0., 0., 0.]
     ) # to check that near the max_extension it's also okay
 
+
+    print( ext_2D[0][0][0], ext_2D_max[0][0][0])
     results = [
         jnp.array_equal(expected_first_line_2D, ext_2D[0][0][0]) ,
         jnp.array_equal(expected_first_line_2D_max, ext_2D_max[0][0][0])
@@ -647,7 +649,6 @@ def unit_test_reshaping_extend():
         return a+b
     inequalities = [[ineq, 7, 2, 2]] 
     estimator_diag_ineq = run_estimator_on_extension_2D(inequalities)
-    print(estimator_diag_ineq)
 
     expected_H_mod_1D = jnp.array([0, 1, 2, 3, 4, 5, 6])
     expected_Hred_mod_1D = jnp.array([0, 1, 2, 3, 4, 5, 0])
@@ -671,7 +672,6 @@ def unit_test_reshaping_extend():
     expected_ineq_2D = [[None, 4, 1, 1], [None, 7, 2, 2]]
 
 
-
     working = [
         jnp.array_equal(expected_H_mod_1D, resh_ext_1D[1](0)[0]) ,
         jnp.array_equal(expected_Hred_mod_1D, resh_ext_1D[3](0)[0]) ,
@@ -685,9 +685,7 @@ def unit_test_reshaping_extend():
         (expected_tensorisation_2D_last == resh_ext_2D[7][-1]) , 
         (expected_shape_objects==jnp.array(resh_ext_2D[5]).shape[0]) ,
         estimator_simple==0,
-        # estimator_diag_ineq==0 we do not expect 0 ! because we do not extend by trunc
-        # size but according to the inequalities
-        estimator_diag_ineq==0.17384097
+        estimator_diag_ineq==0
     ]
     print(working)
     return (all(working))
