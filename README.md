@@ -55,5 +55,5 @@ print(res2)
 # Installation 
 
 ```shell
-pip install git+https://github.com/georges/dynamiqs_adaptative.git@inequalities_ab_initio
+pip install git+https://github.com/etienney/dynamiqs_adaptative.git@inequalities_ab_initio
 ```
