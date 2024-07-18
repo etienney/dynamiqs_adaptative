@@ -27,6 +27,7 @@ from .mediffrax import MEDopri5, MEDopri8, MEEuler, METsit5
 from .mepropagator import MEPropagator
 
 from ..inequalities.reshapings import downsize_via_ineq
+from ..inequalities.saves import collect_save_ineq
 
 __all__ = ['mesolve']
 
@@ -102,7 +103,15 @@ def mesolve(
     """  # noqa: E501
 
     if options.tensorisation is not None and options.inequalities is not None:
-        H, rho0, *jump_ops = downsize_via_ineq(H, rho0, jump_ops, options)
+        (
+            options, 
+            actual_tensorisation, 
+            ineq_tensorisation, 
+            inequalities, 
+            H, 
+            rho0, 
+            jump_ops
+        ) = downsize_via_ineq(H, rho0, jump_ops, options)
 
     # === convert arguments
     H = _astimearray(H)
@@ -120,8 +129,12 @@ def mesolve(
 
     # we implement the jitted vectorization in another function to pre-convert QuTiP
     # objects (which are not JIT-compatible) to JAX arrays
-    return _vectorized_mesolve(
+    results = _vectorized_mesolve(
         H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
+    )
+    return (
+        results if options.inequalities is None 
+        else collect_save_ineq(results, actual_tensorisation, inequalities)
     )
 
 
