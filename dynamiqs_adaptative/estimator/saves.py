@@ -77,5 +77,5 @@ def integrate_euler(derivatives, time, constant=0):
         dt = time[i] - time[i-1]
         if dt<0:
             print("raise alarms", time[i], time[i-1])
-        integral[i] = integral[i-1] + derivatives[i-1] * dt + constant
+        integral[i] = integral[i-1] + derivatives[i] * dt + constant
     return integral
