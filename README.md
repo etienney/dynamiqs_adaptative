@@ -3,6 +3,8 @@ A version of dynamiqs implementing a solver where the object can be truncated in
 
 ## Exemple
 ```
+import dynamiqs_adaptative as dq
+
 def jump_ops2(n_a,n_b):
     kappa=1.0
     a_a = dq.destroy(n_a)
