@@ -48,11 +48,7 @@ from ..estimator.saves import (
 )
 from ..estimator.mesolve_fcts import mesolve_estimator_init
 from ..estimator.utils.warnings import warning_estimator_tol_reached
-from ..estimator.utils.utils import find_approx_index, put_together_results
-from ..estimator.reshapings import (
-    reduction_nD, extension_nD, projection_nD, mask, dict_nD
-)
-from ..estimator.reshaping_y import reshaping_init, reshaping_extend
+from ..estimator.reshaping_y import reshaping_init
 from ..utils.utils import dag
 from ..result import Result, Saved, Saved_estimator
 import time

@@ -58,7 +58,8 @@ def check_not_under_truncature(tensorisation, trunc_size):
     Check if the a certain tensorsation is not under 2 times the truncature to avoid
     problems with the estimator.
     For instance if we have trunc_size = [8,4] and we check the tensorisation [7,1], it 
-    returns true, while [8,1] returns False (tensorisation starting at 0)
+    returns true, while [8,1] returns False (tensorisation starts at 0, but not 
+    trunc_size)
     """
     return any(tensorisation[j] > max(trunc_size[j] - 1, 0)
         for j in range(len(trunc_size))

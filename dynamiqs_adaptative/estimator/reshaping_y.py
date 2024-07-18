@@ -70,10 +70,10 @@ def reshaping_init(
             tensorisation, inequalities, options
         )
         H_mod, rho0_mod, *jump_ops_mod = temp[0]
-        tensorisation = temp[1]
+        tensorisation_mod = temp[1]
         _mask_mod = mask(
             H_mod, 
-            jnp.array(dict_nD_reshapings(tensorisation, inequalities, options, 'proj'))
+            jnp.array(dict_nD_reshapings(tensorisation_mod, inequalities, options, 'proj'))
         )
         Hred_mod, rho0_mod, *Lsred_mod = [
             projection_nD(x, _mask_mod) for x in [H_mod] + [rho0_mod] + 
@@ -85,7 +85,7 @@ def reshaping_init(
         Hred_mod = _astimearray(Hred_mod)
         Lsred_mod = [_astimearray(L) for L in Lsred_mod]
         return (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, 
-            tensorisation, ineq_set
+            tensorisation_mod, ineq_set
         )
     
 def reshaping_extend(

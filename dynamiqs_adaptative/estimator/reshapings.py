@@ -10,6 +10,7 @@ from .utils.utils import (
 )
 from .._utils import cdtype
 
+
 def mask(obj, pos):
     """
     Prepare positions in a matrix of size obj where we want to act through a mask
@@ -28,6 +29,7 @@ def mask(obj, pos):
         mask = jnp.where(jnp.arange(obj.shape[0])[:, None] == x, False, mask)  # Zero out row
         mask = jnp.where(jnp.arange(obj.shape[1])[None, :] == x, False, mask)  # Zero out column
     return mask
+
 
 def projection_nD(
     obj, _mask
@@ -75,16 +77,14 @@ def red_ext_zeros(objs, tensorisation, inequalities, options):
     tensorisation = list(to_hashable(tensorisation))
     for i in range(len(objs)):
         new_objs.append(reduction_nD(objs[i], dictio))
-    # print(tensorisation)
     ext_tens = extended_tensorisation(None, options, tensorisation)
-    # print(tensorisation, ext_tens)
     old_pos, new_pos = find_contiguous_ranges(tensorisation, ext_tens)
-    # print(old_pos, new_pos, len(ext_tens), jnp.array(new_objs).shape)
     len_new_objs = len(ext_tens)
     zeros_obj = jnp.zeros((len_new_objs, len_new_objs), cdtype())
     jaxed_extension = jax.jit(lambda objs: extension(objs, new_pos, old_pos, zeros_obj))
     ext = jaxed_extension(new_objs)
     return ext, ext_tens
+
 
 def red_ext_full(objs, tensorisation, inequalities, options):
     # Sort positions in descending order to avoid shifting issues
@@ -180,7 +180,7 @@ def dict_nD_reshapings(tensorisation, inequalities, options = None, usage = None
                 if options is not None:
                     if ((#(usage == 'proj' or usage == 'reduce') and 
                         not check_not_under_truncature(tensorisation[i], 
-                        options.trunc_size))# 2* because We need L_n-L_{n-k} n>=2*k
+                        options.trunc_size))
                     ):
                         break
                 dictio.append(i)
@@ -215,6 +215,7 @@ def delete_tensor_elements(obj, positions):
         del obj[pos]
     return obj
 
+
 def reduction_nD(obj, positions):
     """
     same as projection_nD but delete lines instead of putting zeros.
@@ -226,6 +227,7 @@ def reduction_nD(obj, positions):
     if positions.size!=0:
         mask = mask.at[positions].set(False)
     return obj[mask][:, mask]
+
 
 def extended_tensorisation(new_ineq, options, tensorisation = None):
     # complexity n*k^2
@@ -255,3 +257,5 @@ def extended_tensorisation(new_ineq, options, tensorisation = None):
             new_tensorisation.append(tensor)
     new_tensorisation = sorted(eliminate_duplicates(new_tensorisation))
     return new_tensorisation
+
+
