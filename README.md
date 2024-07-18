@@ -4,6 +4,7 @@ A version of dynamiqs implementing a solver where the object can be truncated in
 ## Exemple
 ```
 import dynamiqs_adaptative as dq
+import jax.numpy as jnp
 
 def jump_ops2(n_a,n_b):
     kappa=1.0
