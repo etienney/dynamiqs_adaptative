@@ -73,7 +73,11 @@ class Result(eqx.Module):
         else:
             raise ValueError('Calling estimator without using it does not make sense. '
                              'Try putting \'options = dq.Options(estimator=True)\'')
-        
+    
+    @property
+    def time(self) -> PyTree | None:
+        return self._saved.time
+    
     def _str_parts(self) -> dict[str, str]:
         if self.options.estimator:
             if self.options.tensorisation is None:
@@ -100,16 +104,21 @@ class Result(eqx.Module):
                 estimator if self.options.estimator else None
             ),
             'Simulation size ': (
-                simu_size if self.options.estimator else None
+                simu_size if self.options.estimator and not self.options.reshaping 
+                else None
             ),
             'Original size ': (
-                given_size if self.options.estimator else None
+                given_size if self.options.estimator and not self.options.reshaping 
+                else None
             ),
             'Expects ': array_str(self.expects),
             'Extra   ': (
                 eqx.tree_pformat(self.extra) if self.extra is not None else None
             ),
-            'Infos   ': self.infos if self.infos is not None else None,
+            'Infos   ': (
+                self.infos if self.infos is not None and not self.options.reshaping 
+                else None
+            ),
         }
 
     def __str__(self) -> str:

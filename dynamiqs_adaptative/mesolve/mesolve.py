@@ -150,8 +150,9 @@ def mesolve(
     if options.estimator and options.tensorisation is not None and options.reshaping:
         # a first reshaping to reduce 
         ti0 = time.time()
-        (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-        tensorisation_mod, ineq_set, rextend_args
+        (
+            options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+            tensorisation_mod, ineq_set, rextend_args
         ) = reshaping_init(
             options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, 
             solver.atol
@@ -162,37 +163,40 @@ def mesolve(
         old_steps = len(tsave) 
         estimator_all = []
         rho_all = []
+        time_all = []
         while True: # do while syntax in Python
             print("esti donnéééééé", estimator)
             mesolve_iteration = _vectorized_mesolve(
-            H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, options
-            , Hred_mod, Lsred_mod, _mask_mod, estimator, dt0
+                H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, 
+                options, Hred_mod, Lsred_mod, _mask_mod, estimator, dt0
             )
             mesolve_iteration = collect_saved_iteration(
                 mesolve_iteration, estimator_all, rextend_args
             )
-            (rho_all, estimator_all, L_reshapings, estimator, new_tsave, true_time,
-            dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-            tensorisation_mod, rextend_args) = mesolve_iteration_prepare(
-                mesolve_iteration, old_steps, 
-                tsave, L_reshapings, rho_all, estimator_all, H, jump_ops, options, 
-                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod, 
-                solver, ineq_set
+            (
+                rho_all, estimator_all, time_all, 
+                L_reshapings, new_tsave, estimator, true_time, dt0, options, 
+                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+                tensorisation_mod, rextend_args
+            ) = mesolve_iteration_prepare(
+                rho_all, estimator_all, time_all,
+                L_reshapings, tsave, old_steps, options,
+                mesolve_iteration, solver, ineq_set,
+                H, jump_ops, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, 
+                tensorisation_mod, 
             )
-
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # do while syntax
                 break
         # put the results in the usual dynamiqs format
-        print(mesolve_iteration)
         mesolve_result = collect_saved_reshapings_final(
-            mesolve_iteration, rho_all, estimator_all
+            mesolve_iteration, rho_all, estimator_all, time_all
         )
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects
         # (which are not JIT-compatible) to JAX arrays
         mesolve_result = _vectorized_mesolve(
-            H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options
-            , Hred, Lsred, _mask, estimator, dt0
+            H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options,
+            Hred, Lsred, _mask, estimator, dt0
         )
     if options.estimator and not options.reshaping:
         # warn the user if the estimator's tolerance has been reached

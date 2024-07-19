@@ -67,11 +67,11 @@ class DiffraxSolver(BaseSolver):
                 index = state.save_state[0].save_index
                 dest = state.save_state[0].ys.estimator[index-1]
                 
-                jax.debug.print("error verif: {a} and dt: {dt}", a=dest, dt = dt)
                 erreur_tol = (state.tprev * 
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 )
+                jax.debug.print("error verif. err {a} tol {b}", a=dest*dt, b=erreur_tol)
                 # not_max = not check_max_reshaping_reached(self.options, self.Hred)
                 not_max = not check_max_reshaping_reached(self.options, self.Hred)
                 extend = jax.lax.cond((dest * dt >= erreur_tol) & 

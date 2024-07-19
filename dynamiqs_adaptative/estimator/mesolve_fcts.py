@@ -67,9 +67,13 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
         )
     return options, Hred, Lsred, _mask, tensorisation
 
-def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings, rho_all
-    , estimator_all, H, jump_ops, options, H_mod, jump_ops_mod, Hred_mod, 
-    Lsred_mod, _mask_mod, tensorisation_mod, solver, ineq_set):
+def mesolve_iteration_prepare(
+    rho_all, estimator_all, time_all,
+    L_reshapings, tsave, old_steps, options,
+    mesolve_iteration, solver, ineq_set,
+    H, jump_ops, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod
+):
+    rextend_args = None
     print("infos sur la run", mesolve_iteration.infos)
     true_time = mesolve_iteration._saved.time
     true_steps = len(true_time) - 1
@@ -88,7 +92,7 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     estimator_erreur = mesolve_iteration.estimator[-1]
     rho_all.append(mesolve_iteration.states[:-1])
     estimator_all.append(mesolve_iteration.estimator[:-1])
-
+    time_all.append(mesolve_iteration.time[:-1])
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
         print("""WARNING: your space wasn't large enough to capture the dynamic up to
@@ -108,7 +112,7 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     # print("estimator all qui charge:", estimator_all)
     te0 = time.time()
     if (L_reshapings[-1]==1
-    ):# and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
+    ):
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod, rextend_args) = (
             reshaping_extend(options, H, jump_ops, rho_mod,
@@ -130,7 +134,10 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     print("estimator:", estimator,"time: ", true_time)
     print("L_reshapings:", L_reshapings)
     # print("Ls", [jump_ops_mod[0](0)[i][i].item() for i in range(len(jump_ops_mod[0](0)[0]))], "\n", [Lsred_mod[0](0)[i][i].item() for i in range(len(Lsred_mod[0](0)[0]))], "\nrho", [rho_mod[i][i].item() for i in range(len(rho_mod[0]))], "\n mask", _mask_mod[0], "\ntensor", tensorisation_mod, "\nest", true_estimator)
-    return (rho_all, estimator_all, L_reshapings, estimator, new_tsave, true_time,
-            dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-            tensorisation_mod, rextend_args)
+    return (
+        rho_all, estimator_all, time_all, 
+        L_reshapings, new_tsave, estimator, true_time, dt0, options, 
+        H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+        tensorisation_mod, rextend_args
+    )
 
