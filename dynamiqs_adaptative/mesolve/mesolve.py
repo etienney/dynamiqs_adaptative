@@ -50,7 +50,7 @@ from ..estimator.mesolve_fcts import mesolve_estimator_init
 from ..estimator.utils.warnings import warning_estimator_tol_reached
 from ..estimator.reshaping_y import reshaping_init
 from ..utils.utils import dag
-from ..result import Result, Saved, Saved_estimator
+from typing import Any
 import time
 
 __all__ = ['mesolve']
@@ -133,6 +133,7 @@ def mesolve(
     exp_ops = jnp.asarray(exp_ops, dtype=cdtype()) if exp_ops is not None else None
     estimator = jnp.zeros(1, dtype = cdtype())
     dt0 = None
+    rextend_args = None
 
     # === estimator part
     options, Hred, Lsred, _mask, tensorisation = (
@@ -150,7 +151,7 @@ def mesolve(
         # a first reshaping to reduce 
         ti0 = time.time()
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-        tensorisation_mod, ineq_set
+        tensorisation_mod, ineq_set, rextend_args
         ) = reshaping_init(
             options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, 
             solver.atol
@@ -168,15 +169,17 @@ def mesolve(
             , Hred_mod, Lsred_mod, _mask_mod, estimator, dt0
             )
             mesolve_iteration = collect_saved_iteration(
-                mesolve_iteration, estimator_all
+                mesolve_iteration, estimator_all, rextend_args
             )
             (rho_all, estimator_all, L_reshapings, estimator, new_tsave, true_time,
             dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-            tensorisation_mod) = mesolve_iteration_prepare(mesolve_iteration, old_steps, 
-            tsave, L_reshapings, rho_all, estimator_all, H, jump_ops, options, 
-            H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod, 
-            solver, ineq_set)
-            
+            tensorisation_mod, rextend_args) = mesolve_iteration_prepare(
+                mesolve_iteration, old_steps, 
+                tsave, L_reshapings, rho_all, estimator_all, H, jump_ops, options, 
+                H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod, 
+                solver, ineq_set
+            )
+
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # do while syntax
                 break
         # put the results in the usual dynamiqs format
@@ -212,7 +215,7 @@ def _vectorized_mesolve(
     Lsred: list[TimeArray] | None,
     _mask: Array | None,
     estimator: Array | None,
-    dt0: float | None
+    dt0: float | None,
 ) -> MEResult:
     # === vectorize function
     # we vectorize over H, jump_ops and rho0, all other arguments are not vectorized

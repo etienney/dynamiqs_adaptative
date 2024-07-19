@@ -110,8 +110,9 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     if (L_reshapings[-1]==1
     ):# and not jnp.isfinite(a[0].estimator[-1]): # isfinite to check if we aren't on the last reshaping
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-        tensorisation_mod) = (reshaping_extend(options, H, jump_ops, rho_mod,
-        tensorisation_mod, true_time[-2], ineq_set)
+        tensorisation_mod, rextend_args) = (
+            reshaping_extend(options, H, jump_ops, rho_mod,
+            tensorisation_mod, true_time[-2], ineq_set)
         )
         print("temps du reshaping: ", time.time() - te0)
         print("estimator calculé:", compute_estimator(
@@ -121,7 +122,7 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
         )
     elif (L_reshapings[-1]==-1):
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-        tensorisation_mod) = (
+        tensorisation_mod, rextend_args) = (
             reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation_mod, 
             true_time[-2], ineq_set)
         )
@@ -131,5 +132,5 @@ def mesolve_iteration_prepare(mesolve_iteration, old_steps, tsave, L_reshapings,
     # print("Ls", [jump_ops_mod[0](0)[i][i].item() for i in range(len(jump_ops_mod[0](0)[0]))], "\n", [Lsred_mod[0](0)[i][i].item() for i in range(len(Lsred_mod[0](0)[0]))], "\nrho", [rho_mod[i][i].item() for i in range(len(rho_mod[0]))], "\n mask", _mask_mod[0], "\ntensor", tensorisation_mod, "\nest", true_estimator)
     return (rho_all, estimator_all, L_reshapings, estimator, new_tsave, true_time,
             dt0, options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-            tensorisation_mod)
+            tensorisation_mod, rextend_args)
 

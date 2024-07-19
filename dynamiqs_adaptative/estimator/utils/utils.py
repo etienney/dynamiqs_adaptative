@@ -3,6 +3,7 @@ import numpy as np
 import jax
 import itertools
 import math
+from ..._utils import cdtype
 # from ..utils.utils import tuple_to_list
 
 def tensorisation_maker(lazy_tensorisation):
@@ -26,12 +27,14 @@ def to_hashable(obj):
     else:
         return obj
 
+
 def tuple_to_list(t):
     if isinstance(t, tuple):
         return [tuple_to_list(item) for item in t]
     else:
         return t
     
+
 def find_approx_index(lst, value):
     # find the position in a list containing something close to value of this something
     return min(range(len(lst)), key=lambda i: abs(lst[i] - value))
@@ -48,12 +51,14 @@ def new_ts(t0, ts):
     new_ts=new_ts.at[:].set(ts[final_state:])
     return new_ts
 
+
 def prod(lst):
     # make the product of the number in a list
     product = 1
     for num in lst:
         product *= num
     return product
+
 
 def find_non_infs_matrices(matrices):
     # output matrices not full of infs in a list of matrices ending with only matrices 
@@ -66,6 +71,7 @@ def find_non_infs_matrices(matrices):
         filtered_matrices.append(matrix)
     
     return filtered_matrices
+
 
 def split_contiguous_indices(indices):
     """
@@ -83,6 +89,7 @@ def split_contiguous_indices(indices):
     ranges.append((start, end))
     return ranges
 
+
 def shift_ranges(ranges):
     """
     shift_ranges([(0, 4), (7, 11), (14, 22)]) = [(0, 4), (5, 9), (10, 18)]
@@ -95,6 +102,7 @@ def shift_ranges(ranges):
         new_ranges.append((start, new_end))
         start = new_end + 1
     return new_ranges
+
 
 def find_contiguous_ranges(list1, expanded_list):
     result1 = []
@@ -115,6 +123,7 @@ def find_contiguous_ranges(list1, expanded_list):
             i2 += 1
     return result1, result2
 
+
 def reverse_indices(L, x):
     """
     Put the indices not in L up to x.
@@ -124,6 +133,7 @@ def reverse_indices(L, x):
     L_set = set(L)  # Convert list L to a set for O(1) membership testing
     reversed_list = [i for i in range(x + 1) if i not in L_set]
     return reversed_list
+
 
 def ineq_to_tensorisation(old_inequalities, max_tensorisation):
     """
@@ -138,12 +148,14 @@ def ineq_to_tensorisation(old_inequalities, max_tensorisation):
             tensorisation.append(tensor)
     return tensorisation
 
+
 def add_trunc_size_vectors(tensorisation, trunc_size):
     indices = [range(max_dim) for max_dim in trunc_size]
     for tensor in itertools.product(*indices):
             tensorisation.append(tensor)
     return sorted(eliminate_duplicates(tensorisation))
-                  
+
+
 def put_together_results(L, k, rejoin = False):
     """
     The reshaping outputs some [0, 0.1, 0.2, 0.3, 0.4], [0.3, 0.4, 0.5, ...,  1.0] for a 
@@ -164,11 +176,13 @@ def put_together_results(L, k, rejoin = False):
     if rejoin: Lnew = jnp.concatenate(Lnew)
     return Lnew
 
+
 def generate_square_indices_around(static_list, dimensions):
     # Generate all possible combinations of indices for the given dimensions
     index_combinations = itertools.product(*[range(dim + 1) for dim in dimensions])
     # Add the static list to each combination of indices
     return [list(map(sum, zip(comb, static_list))) for comb in index_combinations]
+
 
 def cut_over_max_tensorisation(list, max_tensorisation):
     """
@@ -180,6 +194,7 @@ def cut_over_max_tensorisation(list, max_tensorisation):
     ]
     return filtered_list
 
+
 def eliminate_duplicates(lists):
     unique_lists = []
     seen = set()
@@ -190,6 +205,7 @@ def eliminate_duplicates(lists):
             unique_lists.append(lst)
     return unique_lists
 
+
 def excluded_numbers(ranges, max_index):
     excluded_set = set()
     for start, end in ranges:
@@ -197,9 +213,28 @@ def excluded_numbers(ranges, max_index):
             excluded_set.add(i)
     return [num for num in range(max_index) if num not in excluded_set]
 
+
 def latest_non_inf_index(lst):
     # find the latest elements in a list that is not inf
     for i in range(len(lst) - 1, -1, -1):
         if lst[i] != math.inf:
             return i
     return None  # If all elements are `inf`, return None
+
+
+def find_reextension_params(current_tens, max_tens):
+    from ..reshapings import extension
+    maximum_tensorisation = list(itertools.product(*[range(max_dim) 
+    for max_dim in max_tens]))
+    old_pos, new_pos = find_contiguous_ranges(
+        current_tens, maximum_tensorisation
+    )
+    old_pos = to_hashable(old_pos)
+    new_pos = to_hashable(new_pos)
+    size_max_obj = to_hashable(prod(max_tens))
+    zeros_obj = (jnp.zeros((size_max_obj, size_max_obj), cdtype()))
+    fun = jax.jit(
+        lambda obj: extension(obj, new_pos, old_pos, zeros_obj)
+    )
+    return fun
+    return new_pos, old_pos, zeros_obj, fun

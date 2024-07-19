@@ -19,6 +19,7 @@ from .abstract_solver import State
 from ..estimator.saves import save_estimator
 from ..estimator.utils.warnings import check_max_reshaping_reached
 from .._utils import cdtype
+from ..estimator.reshaping_y import error_reducing
 
 
 class DiffraxSolver(BaseSolver):
@@ -77,8 +78,8 @@ class DiffraxSolver(BaseSolver):
                     not_max, lambda: True, lambda: False
                 )
                 # # print(kwargs['args'][4])
-                # error_red = error_reducing(state.y.rho, self.options)
                 reduce = False
+                # error_red = error_reducing(state.y.rho, self.options)
                 # reduce = jax.lax.cond(
                 #     ((state.y.err[0]).real + error_red <= 
                 #     erreur_tol/self.options.downsizing_rtol)
@@ -111,7 +112,9 @@ class DiffraxSolver(BaseSolver):
                     self.options.progress_meter.to_diffrax() 
                     if not self.options.reshaping else dx.NoProgressMeter()
                 ), 
-                args = [self.H, self.Ls, self.Hred, self.Lsred, self._mask] 
+                args = [
+                    self.H, self.Ls, self.Hred, self.Lsred, self._mask, 
+                ] 
             )
 
         # === collect and return results

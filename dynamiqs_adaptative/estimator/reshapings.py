@@ -9,6 +9,7 @@ from .utils.utils import (
     excluded_numbers, tensorisation_maker
 )
 from .._utils import cdtype
+from functools import partial
 
 
 def mask(obj, pos):
@@ -69,6 +70,26 @@ def dict_nD(tensorisation, inequalities):
     return dictio
 
 
+def extension2(objs, new_positions, old_positions, zeros_obj):
+    """
+    Extends a matrix by putting its values at index from old_positions to new_positions,
+     and filling the rest with zeros
+    """
+    len_pos = len(old_positions)
+    new_objs = []
+    for obj in objs:
+        new_obj = zeros_obj[:]
+        for i in range(len_pos):
+            for j in range(len_pos):
+                new_obj = new_obj.at[
+                    new_positions[i][0]:new_positions[i][1]+1, 
+                    new_positions[j][0]:new_positions[j][1]+1].set(
+                    obj[old_positions[i][0]:old_positions[i][1]+1, 
+                    old_positions[j][0]:old_positions[j][1]+1]
+                )
+        new_objs.append(new_obj)
+    return new_objs
+
 def red_ext_zeros(objs, tensorisation, inequalities, options):
     new_objs = []
     # Sort positions in descending order to avoid shifting issues
@@ -81,7 +102,14 @@ def red_ext_zeros(objs, tensorisation, inequalities, options):
     old_pos, new_pos = find_contiguous_ranges(tensorisation, ext_tens)
     len_new_objs = len(ext_tens)
     zeros_obj = jnp.zeros((len_new_objs, len_new_objs), cdtype())
-    jaxed_extension = jax.jit(lambda objs: extension(objs, new_pos, old_pos, zeros_obj))
+    # jaxed_extension = jax.jit(lambda objs: extension2(objs, new_pos, old_pos, zeros_obj))
+    jaxed_extension = jax.jit(
+        lambda object: extension(object, new_pos, old_pos, zeros_obj)
+    )
+    extended_new_objs = []
+    for obj in new_objs:
+        extended_new_objs.append(jaxed_extension(obj))
+    return jnp.array(extended_new_objs), ext_tens
     ext = jaxed_extension(new_objs)
     return ext, ext_tens
 
@@ -135,38 +163,48 @@ def extension_nD(
     # old_positions = shift_ranges(new_positions)
     zeros_obj = jnp.zeros((len_new_objs, len_new_objs), cdtype())
     # print(old_positions, new_positions, len_new_objs, len(objs[0]))
+    # jaxed_extension = jax.jit(
+    #     lambda objs: extension2(objs, new_positions, old_positions, zeros_obj)
+    # )
+    # return jaxed_extension(objs), ineq_to_tensors, options
     jaxed_extension = jax.jit(
-        lambda objs: extension(objs, new_positions, old_positions, zeros_obj)
+        lambda obj: extension(obj, new_positions, old_positions, zeros_obj)
     )
-    return jaxed_extension(objs), ineq_to_tensors, options
+    new_objs = []
+    for obj in objs:
+        new_objs.append(jaxed_extension(obj))
+    return jnp.array(new_objs), ineq_to_tensors, options
     return extension(objs, new_positions, old_positions, zeros_obj), ineq_to_tensors, options
 
-
-def extension(objs, new_positions, old_positions, zeros_obj):
+def extension(obj, new_positions, old_positions, zeros_obj):
     """
     Extends a matrix by putting its values at index from old_positions to new_positions,
      and filling the rest with zeros
     """
     len_pos = len(old_positions)
-    new_objs = []
-    for obj in objs:
-        new_obj = zeros_obj[:]
-        for i in range(len_pos):
-            for j in range(len_pos):
-                # print(
-                #     range(new_positions[i][0],new_positions[i][1]+1),
-                #     range(new_positions[j][0],new_positions[j][1]+1),
-                #     range(old_positions[i][0],old_positions[i][1]+1),
-                #     range(old_positions[j][0],old_positions[j][1]+1)
-                # )
-                new_obj = new_obj.at[
-                    new_positions[i][0]:new_positions[i][1]+1, 
-                    new_positions[j][0]:new_positions[j][1]+1].set(
-                    obj[old_positions[i][0]:old_positions[i][1]+1, 
-                    old_positions[j][0]:old_positions[j][1]+1]
-                )
-        new_objs.append(new_obj)
-    return new_objs
+    new_obj = zeros_obj[:]
+    for i in range(len_pos):
+        for j in range(len_pos):
+            # Determine the size of the slice
+            slice_size = (
+                new_positions[i][1] - new_positions[i][0] + 1,
+                new_positions[j][1] - new_positions[j][0] + 1
+            )
+            
+            # Extract the slice from the original object
+            old_slice = jax.lax.dynamic_slice(
+                obj,
+                (old_positions[i][0], old_positions[j][0]),
+                slice_size
+            )
+            
+            # Update the new object with the extracted slice
+            new_obj = jax.lax.dynamic_update_slice(
+                new_obj,
+                old_slice,
+                (new_positions[i][0], new_positions[j][0])
+            )
+    return new_obj
 
 
 def dict_nD_reshapings(tensorisation, inequalities, options = None, usage = None):

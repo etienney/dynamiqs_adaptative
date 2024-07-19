@@ -8,11 +8,14 @@ from ..options import Options
 
 import jax.numpy as jnp
 from .inequalities import generate_rec_ineqs, generate_rec_func, update_ineq
-from .utils.utils import prod, ineq_to_tensorisation, to_hashable, tensorisation_maker
-from ..utils.states import fock_dm
-from ..utils.operators import destroy
-from ..utils.utils.general import tensor, dag
-from ..utils.random import rand_dm
+from .utils.utils import (
+    prod, 
+    ineq_to_tensorisation, 
+    tensorisation_maker,
+    find_reextension_params
+)
+import itertools
+
 
 def reshaping_init(
          options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, atol
@@ -65,6 +68,7 @@ def reshaping_init(
             zip(options_ineq_0, ineq_params, up, down)
         ]
         options=Options(**tmp_dic) 
+
         temp = red_ext_full(
             [H(tsave[0])] + [rho0] + [L(tsave[0]) for L in jump_ops],
             tensorisation, inequalities, options
@@ -79,13 +83,15 @@ def reshaping_init(
             projection_nD(x, _mask_mod) for x in [H_mod] + [rho0_mod] + 
             [L for L in jump_ops_mod]
         ]
+        rextend_args = find_reextension_params(tensorisation_mod, options.tensorisation)
 
         H_mod = _astimearray(H_mod)
         jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
         Hred_mod = _astimearray(Hred_mod)
         Lsred_mod = [_astimearray(L) for L in Lsred_mod]
+
         return (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, 
-            tensorisation_mod, ineq_set
+            tensorisation_mod, ineq_set, rextend_args
         )
     
 def reshaping_extend(
@@ -117,13 +123,15 @@ def reshaping_extend(
     Hred_mod, *Lsred_mod =  [
         projection_nD(x, _mask_mod) for x in [H_mod] + [L for L in Ls_mod]
     ]
+    rextend_args = find_reextension_params(tensorisation, options.tensorisation)
     
     H_mod = _astimearray(H_mod)
     Ls_mod = [_astimearray(L) for L in Ls_mod]
     Hred_mod = _astimearray(Hred_mod)
     Lsred_mod = [_astimearray(L) for L in Lsred_mod]
     return (
-        options, H_mod, Ls_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, tensorisation
+        options, H_mod, Ls_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+        tensorisation, rextend_args
     )
 
 def reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation, t, ineq_set
@@ -149,6 +157,7 @@ def reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation, t, ineq_set
         projection_nD(x, _mask_mod) for x in [H_mod] + [rho_mod] + 
         [L for L in jump_ops_mod]
     ]
+    rextend_args = find_reextension_params(tensorisation, options.tensorisation)
 
     H_mod = _astimearray(H_mod)
     jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
@@ -156,7 +165,7 @@ def reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation, t, ineq_set
     Lsred_mod = [_astimearray(L) for L in Lsred_mod]
     return (
         options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-        tensorisation
+        tensorisation, rextend_args
     )
 
 def error_reducing(rho, options):

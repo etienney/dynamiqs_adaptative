@@ -3,9 +3,10 @@ import jax.numpy as jnp
 import numpy as np
 import jax
 from ..core.abstract_solver import State
-from ..estimator.reshapings import projection_nD
+from ..estimator.reshapings import projection_nD, extension
 from .estimator import compute_estimator
 from ..estimator.utils.utils import put_together_results
+from .._utils import cdtype
 
 
 def save_estimator(t, y, args):
@@ -13,9 +14,13 @@ def save_estimator(t, y, args):
     H, Ls, Hred, Lsred, _mask = args
     y_true = jnp.array(y.rho)
     rho = projection_nD(y_true, _mask)
+    tmp_dic=y.__dict__
+    tmp_dic['rho'] = rho
+    required_params = ['rho', 'err']
+    filtered_tmp_dic = {k: tmp_dic[k] for k in required_params}
+    rho_saved = State(**filtered_tmp_dic)
     dest = compute_estimator(H, Ls, Hred, Lsred, rho, t)
-    # dest = jnp.array(0)
-    return Saved_estimator(y, None, None, dest, t)
+    return Saved_estimator(rho_saved, None, None, dest, t)
 
 
 def collect_saved_estimator(results):
@@ -35,12 +40,15 @@ def collect_saved_estimator(results):
     return results
 
 
-def collect_saved_iteration(results, estimator_all):
+def collect_saved_iteration(results, estimator_all, rextend_args):
     tmp_dic=results.__dict__
     corrected_time = results._saved.time
     corrected_time = corrected_time[jnp.isfinite(corrected_time)]
     true_steps = len(corrected_time)
     new_states = results.states.rho[:true_steps]
+    extended_states = []
+    for state in new_states:
+        extended_states.append(rextend_args(state))
     new_dest = results.estimator[:true_steps]
     print(estimator_all)
     if len(estimator_all) == 0:
@@ -48,7 +56,7 @@ def collect_saved_iteration(results, estimator_all):
     else:
         est = integrate_euler(new_dest, corrected_time, estimator_all[-1][-1])
     print("output estimators (der, int, time)!:",new_dest, est, corrected_time)
-    new_save = Saved_estimator(new_states, None, None, est, corrected_time)
+    new_save = Saved_estimator(extended_states, None, None, est, corrected_time)
     tmp_dic['_saved'] = new_save
     required_params = ['tsave', 'solver', 'gradient', 'options', '_saved', 'infos']
     filtered_tmp_dic = {k: tmp_dic[k] for k in required_params}
@@ -77,5 +85,5 @@ def integrate_euler(derivatives, time, constant=0):
         dt = time[i] - time[i-1]
         if dt<0:
             print("raise alarms", time[i], time[i-1])
-        integral[i] = integral[i-1] + derivatives[i] * dt + constant
+        integral[i] = integral[i-1] + derivatives[i] * dt 
     return integral
