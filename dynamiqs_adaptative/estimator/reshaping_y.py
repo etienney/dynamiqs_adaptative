@@ -12,10 +12,10 @@ from .utils.utils import (
     prod, 
     ineq_to_tensorisation, 
     tensorisation_maker,
-    find_reextension_params
+    find_reextension_params,
+    to_hashable
 )
-import itertools
-
+import copy
 
 def reshaping_init(
          options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, atol
@@ -36,7 +36,7 @@ def reshaping_init(
         up = options.trunc_size
         down = options.trunc_size
         ineq_set = [generate_rec_func(j) for j in range(len(ineq_params))]
-        inequalities = ineq_from_params(ineq_set, ineq_params)# /!\ +1 since lazy_tensorisation starts counting at 0
+        inequalities = ineq_from_params(ineq_set, ineq_params)
     else:
         len_ineq = len(options.inequalities)
         ineq_params = [options.inequalities[i][1] for i in  
@@ -84,7 +84,8 @@ def reshaping_init(
             [L for L in jump_ops_mod]
         ]
         rextend_args = find_reextension_params(tensorisation_mod, options.tensorisation)
-
+        ineq_set = to_hashable(ineq_set)
+        
         H_mod = _astimearray(H_mod)
         jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
         Hred_mod = _astimearray(Hred_mod)
@@ -168,20 +169,22 @@ def reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation, t, ineq_set
         tensorisation, rextend_args
     )
 
-def error_reducing(rho, options):
+def error_reducing(rho, options, ineq_set):
     # compute the error made by reducing rho
-    rec_ineq = [a[1] - b for a, b in 
-        zip(options.inequalities, options.trunc_size)]
-    inequalities = generate_rec_ineqs(rec_ineq)
-    rec_ineq_prec = [a[1] for a in options.inequalities]
-    inequalities_previous = generate_rec_ineqs(rec_ineq_prec)
-    tensorisation = ineq_to_tensorisation(inequalities_previous, options.tensorisation)
+    options_copy = copy.deepcopy(options)
+    old_inequalities = ineq_from_params(ineq_set, [options_copy.inequalities[i][1] for i in 
+        range(len(options_copy.inequalities))]
+    )
+    options_copy = update_ineq(options_copy, direction='down')
+    inequalities = ineq_from_params(ineq_set, [options_copy.inequalities[i][1] for i in 
+        range(len(options_copy.inequalities))]
+    )
+    tensorisation = ineq_to_tensorisation(old_inequalities, options_copy.tensorisation)
     _mask = mask(
         rho, 
-        dict_nD_reshapings(tensorisation, inequalities, options, usage = 'reduce')
+        dict_nD_reshapings(tensorisation, inequalities, options_copy, usage = 'reduce')
     )
     proj_reducing = projection_nD(rho, _mask)
-    # jax.debug.print("rho{a}\nand reduced{b}", a=rho, b=proj_reducing[0])
     return jnp.linalg.norm(proj_reducing[0]-rho, ord='nuc')
 # 
 def trace_ineq_states(tensorisation, inequalities, rho):

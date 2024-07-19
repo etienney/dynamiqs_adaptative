@@ -185,25 +185,12 @@ def extension(obj, new_positions, old_positions, zeros_obj):
     new_obj = zeros_obj[:]
     for i in range(len_pos):
         for j in range(len_pos):
-            # Determine the size of the slice
-            slice_size = (
-                new_positions[i][1] - new_positions[i][0] + 1,
-                new_positions[j][1] - new_positions[j][0] + 1
-            )
-            
-            # Extract the slice from the original object
-            old_slice = jax.lax.dynamic_slice(
-                obj,
-                (old_positions[i][0], old_positions[j][0]),
-                slice_size
-            )
-            
-            # Update the new object with the extracted slice
-            new_obj = jax.lax.dynamic_update_slice(
-                new_obj,
-                old_slice,
-                (new_positions[i][0], new_positions[j][0])
-            )
+                new_obj = new_obj.at[
+                    new_positions[i][0]:new_positions[i][1]+1, 
+                    new_positions[j][0]:new_positions[j][1]+1].set(
+                    obj[old_positions[i][0]:old_positions[i][1]+1, 
+                    old_positions[j][0]:old_positions[j][1]+1]
+                )
     return new_obj
 
 

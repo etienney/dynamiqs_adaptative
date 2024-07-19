@@ -102,11 +102,16 @@ def mesolve_iteration_prepare(
         options.estimator_rtol * (solver.atol + 
         jnp.linalg.norm(rho_erreur, ord='nuc') * solver.rtol)
     )
-    if (estimator_erreur).real and not check_max_reshaping_reached(options, H_mod) >= erreur_tol:
+    if (
+        (estimator_erreur).real and not 
+        check_max_reshaping_reached(options, H_mod) >= erreur_tol
+    ):
         L_reshapings.append(1)
-    elif ((estimator_erreur).real + error_reducing(rho_erreur, options) <= 
+    elif (
+        (estimator_erreur).real + error_reducing(rho_erreur, options, ineq_set) <= 
         erreur_tol/options.downsizing_rtol
-        and len(rho_erreur) > 100): # 100 bcs overhead too big to find useful to downsize such little matrices :
+        and len(rho_erreur) > 100 and len(true_time) > 4 
+    ): # 100 bcs overhead too big to find useful to downsize such little matrices. 4 bcs the first iterations may look okay after an extension but it will rapidly goes up again.
         print("reducing set")
         L_reshapings.append(-1)
     # print("estimator all qui charge:", estimator_all)

@@ -7,7 +7,11 @@ from .utils import (
     tensorisation_maker
 )
 from ..estimator import compute_estimator
-from ..inequalities import generate_rec_ineqs
+from ..inequalities import (
+    generate_rec_ineqs,
+    generate_rec_func,
+    ineq_from_params
+)
 from ..degree_guesser import degree_guesser_nD_list
 from ...utils.states import fock_dm
 from ...utils.operators import destroy
@@ -697,16 +701,32 @@ def unit_test_error_reducing():
         rho = jnp.arange(0, product_rho**(2)).reshape(product_rho, product_rho)
         tensorisation_max = [4 * a for a in lazy_tensorisation]
         trunc_size = jnp.array([1 + i for i in range(len(lazy_tensorisation))])
-        rec_ineq_prec = jnp.array([a - 1 for a in lazy_tensorisation])
-        inequalities_previous = generate_rec_ineqs(rec_ineq_prec)
-        options = Options(trunc_size=trunc_size, tensorisation=tensorisation_max,
-            inequalities=[[a, b] for a, b in zip(inequalities_previous, rec_ineq_prec)]
-        )
-        return error_reducing(rho, options)
-    lazy_tensorisation_2D = [3,4]
-    res = run_test(lazy_tensorisation_2D)
-    expected_res = 1123.5209
-    return (expected_res == res)
+        options = Options(trunc_size=trunc_size, tensorisation=tensorisation_max)
+        ineq_params =  [(a-1)//2 for a, b in 
+            zip(options.tensorisation, options.trunc_size)
+        ]
+        up = options.trunc_size
+        down = options.trunc_size
+        ineq_set = [generate_rec_func(j) for j in range(len(ineq_params))]
+        tmp_dic=options.__dict__
+        options_ineq_0 = [None] * (len(options.tensorisation)) # JAX cannot stand lambda functions
+            # when called with options so it is necessary
+        tmp_dic['inequalities'] = [[a, b, c , d] for a, b, c, d in 
+            zip(options_ineq_0, ineq_params, up, down)
+        ]
+        options=Options(**tmp_dic) 
+        error = error_reducing(rho, options, ineq_set)
+        return error, options.inequalities
+    lazy_tensorisation_2D = [5,6]
+    err, inequalities = run_test(lazy_tensorisation_2D)
+    expected_error = 15347.976
+    expected_ineq = [9,11] # to not modify them
+    working = [
+        expected_error == err,
+        expected_ineq == [a[1] for a in inequalities]
+    ]
+    print(working)
+    return all(working)
 
 
 def unit_test_reshaping_reduce():

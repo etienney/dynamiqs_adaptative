@@ -11,7 +11,7 @@ from .._utils import cdtype
 
 def save_estimator(t, y, args):
     # Special save function for computing the estimator
-    H, Ls, Hred, Lsred, _mask = args
+    H, Ls, Hred, Lsred, _mask, _ = args
     y_true = jnp.array(y.rho)
     rho = projection_nD(y_true, _mask)
     tmp_dic=y.__dict__

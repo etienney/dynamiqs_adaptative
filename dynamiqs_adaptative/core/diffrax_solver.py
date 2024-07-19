@@ -76,16 +76,16 @@ class DiffraxSolver(BaseSolver):
                 not_max = not check_max_reshaping_reached(self.options, self.Hred)
                 extend = jax.lax.cond((dest * dt >= erreur_tol) & 
                     not_max, lambda: True, lambda: False
+                ) # we sould not reshape
+                jax.debug.print("t0: {a} and tprev {b} and dt0 {c} ", a=kwargs['t0'], b=state.tprev, c=kwargs['dt0'])
+                jax.debug.print("solverstate {ss}, {it}", ss=state.solver_state, it = state.num_steps)
+                error_red = error_reducing(state.y.rho, self.options, kwargs['args'][5])
+                reduce = jax.lax.cond(
+                    (dest * dt + error_red <= 
+                    erreur_tol/self.options.downsizing_rtol)
+                    & (len(state.y.rho[0]) > 100 & (state.num_steps > 3)), lambda: True, lambda: False # 100 bcs overhead too big to find useful to downsize such little matrices. 3 bcs the first iterations may look okay after an extension but it will rapidly goes up again
                 )
-                # # print(kwargs['args'][4])
                 reduce = False
-                # error_red = error_reducing(state.y.rho, self.options)
-                # reduce = jax.lax.cond(
-                #     ((state.y.err[0]).real + error_red <= 
-                #     erreur_tol/self.options.downsizing_rtol)
-                #     & (len(state.y.rho[0]) > 100), lambda: True, lambda: False # 100 bcs overhead too big to find useful to downsize such little matrices
-                # )
-                # jax.debug.print("sooo ?{res}", res = self.terms.vf(state.tprev, state.y, 0).err)
                 jax.debug.print("activation: e:{a} r:{b} and error seuil: {c}, and time: {tprev}"
                 , a=extend, b=reduce, c =erreur_tol, tprev = state.tprev)
                 # return extend
@@ -113,7 +113,7 @@ class DiffraxSolver(BaseSolver):
                     if not self.options.reshaping else dx.NoProgressMeter()
                 ), 
                 args = [
-                    self.H, self.Ls, self.Hred, self.Lsred, self._mask, 
+                    self.H, self.Ls, self.Hred, self.Lsred, self._mask, self.ineq_set
                 ] 
             )
 

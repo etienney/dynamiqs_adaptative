@@ -15,7 +15,7 @@ from ..time_array import TimeArray
 from ..utils.utils import expect
 from ..options import Options
 
-import jax
+from typing import Any
 
 
 class AbstractSolver(eqx.Module):
@@ -99,6 +99,7 @@ class MESolver(BaseSolver):
     _mask: Array | None
     estimator: Array | None
     dt0: float | None
+    ineq_set: Any | None
     
     def result(self, saved: Saved, infos: PyTree | None = None) -> Result:
         return MEResult(self.ts, self.solver, self.gradient, self.options, saved, infos)
