@@ -71,7 +71,7 @@ class DiffraxSolver(BaseSolver):
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 )
-                jax.debug.print("error verif. err {a} tol {b}", a=dest*dt, b=erreur_tol)
+                jax.debug.print("error verif. err {a} tol {b}, only dest {o}", a=dest*dt, b=erreur_tol, o= dest)
                 # not_max = not check_max_reshaping_reached(self.options, self.Hred)
                 not_max = not check_max_reshaping_reached(self.options, self.Hred)
                 extend = jax.lax.cond((dest * dt >= erreur_tol) & 

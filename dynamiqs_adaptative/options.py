@@ -58,7 +58,7 @@ class Options(eqx.Module):
             the solver's precision, so when branching the estimator to your computation,
             it checks that " estimated_error < estimator_rtol * solver_tolerance ",
             and output an error if it's not the case.
-            The default value (150) has been set empirically.
+            The default value (200) has been set empirically.
         inequalities: (expects estimator and reshaping to be 'True', tensorisation to be 
             given)
             For a n-dimensional object, you can give your own truncature to the
@@ -90,7 +90,7 @@ class Options(eqx.Module):
     reshaping: bool | list = False
     tensorisation: tuple | None = None
     inequalities: list | None = None
-    estimator_rtol : float | None = 150
+    estimator_rtol : float | None = 200
     trunc_size: Array | None = None
     downsizing_rtol : float | None = 5 
 
@@ -107,7 +107,7 @@ class Options(eqx.Module):
         reshaping: bool | list = False,
         tensorisation: tuple | None = None,
         inequalities: list | None = None,
-        estimator_rtol : float | None = 150,
+        estimator_rtol : float | None = 200,
         trunc_size: Array | None = None,
         downsizing_rtol : float | None = 5,
     ):

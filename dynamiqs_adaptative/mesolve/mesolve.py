@@ -164,6 +164,7 @@ def mesolve(
         estimator_all = []
         rho_all = []
         time_all = []
+        inequalities_all = []
         while True: # do while syntax in Python
             print("esti donnéééééé", estimator)
             mesolve_iteration = _vectorized_mesolve(
@@ -171,15 +172,15 @@ def mesolve(
                 options, Hred_mod, Lsred_mod, _mask_mod, estimator, dt0, ineq_set
             )
             mesolve_iteration = collect_saved_iteration(
-                mesolve_iteration, estimator_all, rextend_args
+                mesolve_iteration, estimator_all, rextend_args, options
             )
             (
-                rho_all, estimator_all, time_all, 
+                rho_all, estimator_all, time_all, inequalities_all,
                 L_reshapings, new_tsave, estimator, true_time, dt0, options, 
                 H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
                 tensorisation_mod, rextend_args
             ) = mesolve_iteration_prepare(
-                rho_all, estimator_all, time_all,
+                rho_all, estimator_all, time_all, inequalities_all,
                 L_reshapings, tsave, old_steps, options,
                 mesolve_iteration, solver, ineq_set,
                 H, jump_ops, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, 
@@ -189,7 +190,7 @@ def mesolve(
                 break # do while syntax
         # put the results in the usual dynamiqs format
         mesolve_result = collect_saved_reshapings_final(
-            mesolve_iteration, rho_all, estimator_all, time_all
+            mesolve_iteration, rho_all, estimator_all, time_all, inequalities_all
         )
     else:
         # we implement the jitted vmap in another function to pre-convert QuTiP objects

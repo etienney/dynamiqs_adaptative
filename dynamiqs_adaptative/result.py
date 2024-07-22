@@ -39,11 +39,13 @@ class Saved_estimator(Saved):
     # save additional data needed to compute the estimator
     estimator: Array | None
     time: Array | None
+    inequalities: Array | None
     
-    def __init__(self, ysave, Esave, extra, estimator, time):
+    def __init__(self, ysave, Esave, extra, estimator, time, inequalities):
         super().__init__(ysave, Esave, extra)
         self.estimator = estimator
         self.time = time
+        self.inequalities = inequalities
 
 
 class Result(eqx.Module):
@@ -77,6 +79,10 @@ class Result(eqx.Module):
     @property
     def time(self) -> PyTree | None:
         return self._saved.time
+    
+    @property
+    def inequalities(self)-> Array | None:
+        return self._saved.inequalities
     
     def _str_parts(self) -> dict[str, str]:
         if self.options.estimator:

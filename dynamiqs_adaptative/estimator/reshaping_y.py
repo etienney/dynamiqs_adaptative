@@ -62,8 +62,8 @@ def reshaping_init(
         return H, jump_ops, H, jump_ops, rho0, None, tensorisation, options
     else:
         tmp_dic=options.__dict__
-        options_ineq_0 = [None] * (len(options.tensorisation)) # JAX cannot stand lambda functions
-            # when called with options so it is necessary
+        options_ineq_0 = [0] * (len(options.tensorisation)) # JAX cannot stand lambda functions
+            # when called with options so it is necessary to replace ineq_set by 0 (not None otherwise # (not None otherwise it is not arrayable)
         tmp_dic['inequalities'] = [[a, b, c , d] for a, b, c, d in 
             zip(options_ineq_0, ineq_params, up, down)
         ]

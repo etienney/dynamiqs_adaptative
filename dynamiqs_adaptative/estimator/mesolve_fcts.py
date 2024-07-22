@@ -68,7 +68,7 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
     return options, Hred, Lsred, _mask, tensorisation
 
 def mesolve_iteration_prepare(
-    rho_all, estimator_all, time_all,
+    rho_all, estimator_all, time_all, inequalities_all,
     L_reshapings, tsave, old_steps, options,
     mesolve_iteration, solver, ineq_set,
     H, jump_ops, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod
@@ -93,6 +93,7 @@ def mesolve_iteration_prepare(
     rho_all.append(mesolve_iteration.states[:-1])
     estimator_all.append(mesolve_iteration.estimator[:-1])
     time_all.append(mesolve_iteration.time[:-1])
+    inequalities_all.append(mesolve_iteration.inequalities[:-1])
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
         print("""WARNING: your space wasn't large enough to capture the dynamic up to
@@ -114,7 +115,6 @@ def mesolve_iteration_prepare(
     ): # 100 bcs overhead too big to find useful to downsize such little matrices. 4 bcs the first iterations may look okay after an extension but it will rapidly goes up again.
         print("reducing set")
         L_reshapings.append(-1)
-    # print("estimator all qui charge:", estimator_all)
     te0 = time.time()
     if (L_reshapings[-1]==1
     ):
@@ -140,7 +140,7 @@ def mesolve_iteration_prepare(
     print("L_reshapings:", L_reshapings)
     # print("Ls", [jump_ops_mod[0](0)[i][i].item() for i in range(len(jump_ops_mod[0](0)[0]))], "\n", [Lsred_mod[0](0)[i][i].item() for i in range(len(Lsred_mod[0](0)[0]))], "\nrho", [rho_mod[i][i].item() for i in range(len(rho_mod[0]))], "\n mask", _mask_mod[0], "\ntensor", tensorisation_mod, "\nest", true_estimator)
     return (
-        rho_all, estimator_all, time_all, 
+        rho_all, estimator_all, time_all, inequalities_all,
         L_reshapings, new_tsave, estimator, true_time, dt0, options, 
         H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod, rextend_args

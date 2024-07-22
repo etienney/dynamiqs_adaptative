@@ -20,7 +20,7 @@ def save_estimator(t, y, args):
     filtered_tmp_dic = {k: tmp_dic[k] for k in required_params}
     rho_saved = State(**filtered_tmp_dic)
     dest = compute_estimator(H, Ls, Hred, Lsred, rho, t)
-    return Saved_estimator(rho_saved, None, None, dest, t)
+    return Saved_estimator(rho_saved, None, None, dest, t, None)
 
 
 def collect_saved_estimator(results):
@@ -32,7 +32,7 @@ def collect_saved_estimator(results):
     new_states = results.states.rho[:true_steps]
     new_dest = results.estimator[:true_steps]
     est = integrate_euler(new_dest, corrected_time)
-    new_save = Saved_estimator(new_states, None, None, est, corrected_time)
+    new_save = Saved_estimator(new_states, None, None, est, corrected_time, None)
     tmp_dic['_saved'] = new_save
     required_params = ['tsave', 'solver', 'gradient', 'options', '_saved', 'infos']
     filtered_tmp_dic = {k: tmp_dic[k] for k in required_params}
@@ -40,7 +40,7 @@ def collect_saved_estimator(results):
     return results
 
 
-def collect_saved_iteration(results, estimator_all, rextend_args):
+def collect_saved_iteration(results, estimator_all, rextend_args, options):
     tmp_dic=results.__dict__
     corrected_time = results._saved.time
     corrected_time = corrected_time[jnp.isfinite(corrected_time)]
@@ -55,8 +55,11 @@ def collect_saved_iteration(results, estimator_all, rextend_args):
         est = integrate_euler(new_dest, corrected_time)
     else:
         est = integrate_euler(new_dest, corrected_time, estimator_all[-1][-1])
-    print("output estimators (der, int, time)!:",new_dest, est, corrected_time)
-    new_save = Saved_estimator(jnp.array(extended_states), None, None, est, corrected_time)
+    inequalities = jnp.array([jnp.array(x) for x in (options.inequalities * true_steps)])
+    print("output estimators (der, int, time)!:", new_dest, est, corrected_time, inequalities)
+    new_save = Saved_estimator(
+        jnp.array(extended_states), None, None, est, corrected_time, inequalities
+    )
     tmp_dic['_saved'] = new_save
     required_params = ['tsave', 'solver', 'gradient', 'options', '_saved', 'infos']
     filtered_tmp_dic = {k: tmp_dic[k] for k in required_params}
@@ -64,12 +67,15 @@ def collect_saved_iteration(results, estimator_all, rextend_args):
     return results
 
 
-def collect_saved_reshapings_final(results, rho_all, estimator_all, time_all):
+def collect_saved_reshapings_final(
+        results, rho_all, estimator_all, time_all, inequalities_all
+):
     tmp_dic=results.__dict__
     new_states = jnp.array(put_together_results(rho_all, 1))
     est = put_together_results(estimator_all, 1, True)
     time = put_together_results(time_all, 1, True)
-    new_save = Saved_estimator(new_states, None, None, est, time)
+    ineqs = put_together_results(inequalities_all, 1, True)
+    new_save = Saved_estimator(new_states, None, None, est, time, ineqs)
     tmp_dic['_saved'] = new_save
     required_params = ['tsave', 'solver', 'gradient', 'options', '_saved', 'infos']
     filtered_tmp_dic = {k: tmp_dic[k] for k in required_params}
