@@ -54,7 +54,7 @@ def collect_saved_iteration(results, estimator_all, rextend_args, options):
     if len(estimator_all) == 0:
         est = integrate_euler(new_dest, corrected_time)
     else:
-        est = integrate_euler(new_dest, corrected_time, estimator_all[-1][-1])
+        est = integrate_euler(new_dest, corrected_time, estimator_all[-1][-2]) # -2 since the last step doesn't count
     inequalities = jnp.array([jnp.array(x) for x in (options.inequalities * true_steps)])
     print("output estimators (der, int, time)!:", new_dest, est, corrected_time, inequalities)
     new_save = Saved_estimator(
@@ -70,11 +70,12 @@ def collect_saved_iteration(results, estimator_all, rextend_args, options):
 def collect_saved_reshapings_final(
         results, rho_all, estimator_all, time_all, inequalities_all
 ):
+    print("last esti", estimator_all)
     tmp_dic=results.__dict__
-    new_states = jnp.array(put_together_results(rho_all, 1))
-    est = put_together_results(estimator_all, 1, True)
-    time = put_together_results(time_all, 1, True)
-    ineqs = put_together_results(inequalities_all, 1, True)
+    new_states = jnp.array(put_together_results(rho_all, 2))
+    est = put_together_results(estimator_all, 2, True)
+    time = put_together_results(time_all, 2, True)
+    ineqs = put_together_results(inequalities_all, 2, True)
     new_save = Saved_estimator(new_states, None, None, est, time, ineqs)
     tmp_dic['_saved'] = new_save
     required_params = ['tsave', 'solver', 'gradient', 'options', '_saved', 'infos']

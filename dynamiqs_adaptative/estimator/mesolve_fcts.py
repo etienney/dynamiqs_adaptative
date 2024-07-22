@@ -90,10 +90,10 @@ def mesolve_iteration_prepare(
     # useful to recompute the error to see if it was an extend or a reduce
     rho_erreur = mesolve_iteration.states[-1]
     estimator_erreur = mesolve_iteration.estimator[-1]
-    rho_all.append(mesolve_iteration.states[:-1])
-    estimator_all.append(mesolve_iteration.estimator[:-1])
-    time_all.append(mesolve_iteration.time[:-1])
-    inequalities_all.append(mesolve_iteration.inequalities[:-1])
+    rho_all.append(mesolve_iteration.states)
+    estimator_all.append(mesolve_iteration.estimator)
+    time_all.append(mesolve_iteration.time)
+    inequalities_all.append(mesolve_iteration.inequalities)
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
         print("""WARNING: your space wasn't large enough to capture the dynamic up to
