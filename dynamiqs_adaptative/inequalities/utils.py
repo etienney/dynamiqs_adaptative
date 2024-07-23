@@ -1,5 +1,8 @@
 import itertools
 
+__all__ = ['expected_gain']
+
+
 def ineq_to_tensorisation(inequalities, tensorisation):
     """
     Transform the old tensorisation into a new one respecting the inequalities.
@@ -25,7 +28,7 @@ def ineq_from_param(f, param):
 
     Exemple: def f(i, j): return i+j
              param = 3
-             ineq_from_params(param, f, lazy_tensorisation) = lambda i, j: i+j <= 3 
+             ineq_from_params(f, param) = lambda i, j: i+j <= 3 
     """
     lambda_func = lambda *args: f(*args) <= param
     return lambda_func
@@ -83,3 +86,37 @@ def shift_ranges(ranges):
         start = new_end + 1
     return new_ranges
 
+
+def prod(lst):
+    # make the product of the number in a list
+    product = 1
+    for num in lst:
+        product *= num
+    return product
+
+
+def expected_gain(inequalities_user, tensorisation):
+    """
+    Informs by how many % you can reduce your simulation time by applying said 
+    inequalities.
+
+    Args:
+    inequalities: list of [
+                    lambda functions on n entries, n being your number of modes, value
+                ]
+    tensorisation: The tensorisation in the modes of your simulation
+
+    Returns:
+            The tensorisation once you applied your inequalities
+    """
+    actual_tensorisation = list(
+        itertools.product(*[range(max_dim) for max_dim in tensorisation])
+    )
+    ineqs , params = zip(*inequalities_user)
+    inequalities = ineq_from_params(ineqs, params)
+    new_tens = ineq_to_tensorisation(inequalities, actual_tensorisation)
+    len_new_tens = len(new_tens)
+    len_actual_tens = len(actual_tensorisation)
+    gain = (len_new_tens/len_actual_tens)**3 # **3 because matrix multiplication are in O(n^3)
+    print(f"The simulation with inequalities is expected to take {gain}% of the computing time without inequalities")
+    return new_tens

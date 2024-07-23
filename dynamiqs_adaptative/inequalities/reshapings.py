@@ -63,7 +63,7 @@ def extension_nD(objs, actual_tensorisation, inequalities):
     old_positions = shift_ranges(new_positions)
     zeros_obj = jnp.zeros((len_new_objs, len_new_objs), cdtype())
     jaxed_extension = jax.jit(
-        lambda objs: extension(objs, new_positions, old_positions, zeros_obj)
+        lambda obj: extension(obj, new_positions, old_positions, zeros_obj)
     )
     new_objs = []
     for obj in objs:
