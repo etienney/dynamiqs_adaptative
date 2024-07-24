@@ -107,7 +107,7 @@ def expected_gain(inequalities_user, tensorisation):
     tensorisation: The tensorisation in the modes of your simulation
 
     Returns:
-            The tensorisation once you applied your inequalities
+            The tensorisation once you applied your inequalities, and the gain
     """
     actual_tensorisation = list(
         itertools.product(*[range(max_dim) for max_dim in tensorisation])
@@ -117,6 +117,7 @@ def expected_gain(inequalities_user, tensorisation):
     new_tens = ineq_to_tensorisation(inequalities, actual_tensorisation)
     len_new_tens = len(new_tens)
     len_actual_tens = len(actual_tensorisation)
-    gain = (len_new_tens/len_actual_tens)**3 # **3 because matrix multiplication are in O(n^3)
+    print(len_new_tens, len_actual_tens, (len_new_tens/len_actual_tens))
+    gain = 100*(len_new_tens/len_actual_tens)**3 # **3 because matrix multiplication are in O(n^3)
     print(f"The simulation with inequalities is expected to take {gain}% of the computing time without inequalities")
-    return new_tens
+    return new_tens, gain
