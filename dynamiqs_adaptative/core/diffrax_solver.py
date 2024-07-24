@@ -66,19 +66,18 @@ class DiffraxSolver(BaseSolver):
                 dt = state.tnext - state.tprev
                 index = state.save_state[0].save_index
                 dest = state.save_state[0].ys.estimator[index-1]
-                
-                erreur_tol = (state.tprev * 
+                erreur_tol = ((state.tprev/kwargs['t1']) * 
                     self.options.estimator_rtol * (self.solver.atol + 
                     jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
                 )
-                jax.debug.print("error verif. err {a} tol {b}, only dest {o}", a=dest*dt, b=erreur_tol, o= dest)
+                # jax.debug.print("error verif. err {a} tol {b}, only dest {o}", a=dest*dt, b=erreur_tol, o= dest)
                 # not_max = not check_max_reshaping_reached(self.options, self.Hred)
                 not_max = not check_max_reshaping_reached(self.options, self.Hred)
                 extend = jax.lax.cond((dest * dt >= erreur_tol) & 
                     not_max, lambda: True, lambda: False
                 ) # we sould not reshape
-                jax.debug.print("t0: {a} and tprev {b} and dt0 {c} ", a=kwargs['t0'], b=state.tprev, c=kwargs['dt0'])
-                jax.debug.print("solverstate {ss}, {it}", ss=state.solver_state, it = state.num_steps)
+                # jax.debug.print("t0: {a} and tprev {b} and dt0 {c} ", a=kwargs['t0'], b=state.tprev, c=kwargs['dt0'])
+                # jax.debug.print("solverstate {ss}, {it}", ss=state.solver_state, it = state.num_steps)
                 error_red = error_reducing(state.y.rho, self.options, kwargs['args'][5])
                 reduce = jax.lax.cond(
                     (dest * dt + error_red <= 
@@ -157,7 +156,7 @@ class FixedSolver(DiffraxSolver):
             return f'{self.nsteps} steps'
 
     stepsize_controller: dx.AbstractStepSizeController = dx.ConstantStepSize()
-    max_steps: int = 300  # TODO: fix hard-coded max_steps
+    max_steps: int = 150  # TODO: fix hard-coded max_steps
 
     @property
     def dt0(self) -> float:
