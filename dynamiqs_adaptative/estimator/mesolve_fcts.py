@@ -25,8 +25,13 @@ from .reshaping_y import (
     reshapings_reduce,
     reshaping_init
 )
-from .estimator import compute_estimator
-from ..utils.utils import dag
+from .condition_reshapings import (
+    erreur_tol_fct,
+    condition_extend,
+    condition_reducing
+)
+from ..estimator.utils.utils import integrate_euler
+
 
 
 def mesolve_estimator_init(options, H, jump_ops, tsave):
@@ -68,12 +73,11 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
     return options, Hred, Lsred, _mask, tensorisation
 
 def mesolve_iteration_prepare(
-    rho_all, estimator_all, time_all, inequalities_all,
-    L_reshapings, tsave, old_steps, options,
+    L_reshapings, rextend_args, tsave, old_steps, options,
     mesolve_iteration, solver, ineq_set,
     H, jump_ops, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, tensorisation_mod
 ):
-    rextend_args = None
+    
     print("infos sur la run", mesolve_iteration.infos)
     true_time = mesolve_iteration._saved.time
     true_steps = len(true_time) - 1
@@ -84,35 +88,36 @@ def mesolve_iteration_prepare(
     print("tensorisation max", options.tensorisation)
     print("largest tens reached", tensorisation_mod[-1])
     rho_mod =  mesolve_iteration.states[-2]
+    print(rho_mod.shape)
     estimator = jnp.zeros(1, cdtype())
     estimator = estimator.at[0].set(mesolve_iteration.estimator[-2])
     print("we restart with this base value", estimator)
     # useful to recompute the error to see if it was an extend or a reduce
     rho_erreur = mesolve_iteration.states[-1]
     estimator_erreur = mesolve_iteration.estimator[-1]
-    rho_all.append(mesolve_iteration.states)
-    estimator_all.append(mesolve_iteration.estimator)
-    time_all.append(mesolve_iteration.time)
-    inequalities_all.append(mesolve_iteration.inequalities)
+    L_reshapings.append(0) # to state that a priori no reshapings is done (for the last solution)
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
         print("""WARNING: your space wasn't large enough to capture the dynamic up to
               the tolerance. Give a larger max space[link to what it means] or try to 
               see if your dynamic isn't exploding""")
-    erreur_tol = (true_time[-1] * 
-        options.estimator_rtol * (solver.atol + 
-        jnp.linalg.norm(rho_erreur, ord='nuc') * solver.rtol)
+    erreur_tol = erreur_tol_fct(
+        (true_time[-1]+1e-16), tsave[-1], options.estimator_rtol, solver.atol, 
+        solver.rtol, rho_erreur
     )
-    if (
-        (estimator_erreur).real and not 
-        check_max_reshaping_reached(options, H_mod) >= erreur_tol
-    ):
+    print(estimator_erreur, erreur_tol, dt0)
+    error_red = error_reducing(rho_erreur, options, ineq_set)
+    extending =  condition_extend(
+        estimator_erreur, erreur_tol, not check_max_reshaping_reached(options, H_mod)
+    )
+    print(jnp.logical_not(extending))
+    if (extending):
         L_reshapings.append(1)
     elif (
-        (estimator_erreur).real + error_reducing(rho_erreur, options, ineq_set) <= 
-        erreur_tol/options.downsizing_rtol
-        and len(rho_erreur) > 100 and len(true_time) > 4 
-    ): # 100 bcs overhead too big to find useful to downsize such little matrices. 4 bcs the first iterations may look okay after an extension but it will rapidly goes up again.
+        condition_reducing(estimator_erreur, erreur_tol, error_red, 
+        options.downsizing_rtol, len(rho_erreur[0]), len(true_time), 
+        jnp.logical_not(extending))
+    ): 
         print("reducing set")
         L_reshapings.append(-1)
     te0 = time.time()
@@ -121,28 +126,49 @@ def mesolve_iteration_prepare(
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod, rextend_args) = (
             reshaping_extend(options, H, jump_ops, rho_mod,
-            tensorisation_mod, true_time[-2], ineq_set)
+            tensorisation_mod, true_time[-2], ineq_set, rextend_args)
         )
         print("temps du reshaping: ", time.time() - te0)
-        print("estimator calculé:", compute_estimator(
-            H_mod, jump_ops_mod,
-            Hred_mod, Lsred_mod,
-            rho_mod, true_time[-2])
-        )
+        # print("estimator calculé:", compute_estimator(
+        #     H_mod, jump_ops_mod,
+        #     Hred_mod, Lsred_mod,
+        #     rho_mod, true_time[-2])
+        # )
     elif (L_reshapings[-1]==-1):
         (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod, rextend_args) = (
             reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation_mod, 
-            true_time[-2], ineq_set)
+            true_time[-2], ineq_set, rextend_args)
         )
         print("temps du reshaping: ", time.time() - te0)
-    print("estimator:", estimator,"time: ", true_time)
     print("L_reshapings:", L_reshapings)
     # print("Ls", [jump_ops_mod[0](0)[i][i].item() for i in range(len(jump_ops_mod[0](0)[0]))], "\n", [Lsred_mod[0](0)[i][i].item() for i in range(len(Lsred_mod[0](0)[0]))], "\nrho", [rho_mod[i][i].item() for i in range(len(rho_mod[0]))], "\n mask", _mask_mod[0], "\ntensor", tensorisation_mod, "\nest", true_estimator)
+    print(rho_mod.shape)
     return (
-        rho_all, estimator_all, time_all, inequalities_all,
         L_reshapings, new_tsave, estimator, true_time, dt0, options, 
         H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation_mod, rextend_args
     )
+
+def mesolve_format_sols(
+        mesolve_iteration, rextend_args, rho_all, estimator_all, time_all, 
+        inequalities_all
+):
+    new_states = mesolve_iteration.states
+    extended_states = []
+    extend = rextend_args[-2] if len(rextend_args)>=2 else rextend_args[0] # to account for the case where no extension have been made
+    new_dest = mesolve_iteration.estimator
+    if len(estimator_all) == 0:
+        est = integrate_euler(new_dest, mesolve_iteration.time)
+    else:
+        est = integrate_euler(new_dest, mesolve_iteration.time, estimator_all[-1][-2]) # -2 since the last step doesn't count
+    for state in new_states:
+        extended_states.append(extend(state))
+    rho_all.append(extended_states)
+    estimator_all.append(est)
+    time_all.append(mesolve_iteration.time)
+    inequalities_all.append(mesolve_iteration.inequalities)
+    
+    return rho_all, estimator_all, time_all, inequalities_all
+
 

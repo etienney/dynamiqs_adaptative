@@ -29,6 +29,7 @@ def reshaping_init(
     justified. it's just a guess.
     Also we just do an absolute tolerance, relative tolerance would need to compute
     a norm which is expensive."""
+    rextend_args = []
     if options.inequalities is None:
         ineq_params =  [(a-1)//2 for a, b in 
             zip(options.tensorisation, options.trunc_size)
@@ -83,20 +84,19 @@ def reshaping_init(
             projection_nD(x, _mask_mod) for x in [H_mod] + [rho0_mod] + 
             [L for L in jump_ops_mod]
         ]
-        rextend_args = find_reextension_params(tensorisation_mod, options.tensorisation)
+        rextend_args.append(find_reextension_params(tensorisation_mod, options.tensorisation))
         ineq_set = to_hashable(ineq_set)
         
         H_mod = _astimearray(H_mod)
         jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
         Hred_mod = _astimearray(Hred_mod)
         Lsred_mod = [_astimearray(L) for L in Lsred_mod]
-
         return (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, 
             tensorisation_mod, ineq_set, rextend_args
         )
     
 def reshaping_extend(
-        options, H, Ls, rho, tensorisation, t, ineq_set
+        options, H, Ls, rho, tensorisation, t, ineq_set, rextend_args
     ):
     H = H(t)
     Ls = jnp.stack([L(t) for L in Ls])
@@ -124,7 +124,7 @@ def reshaping_extend(
     Hred_mod, *Lsred_mod =  [
         projection_nD(x, _mask_mod) for x in [H_mod] + [L for L in Ls_mod]
     ]
-    rextend_args = find_reextension_params(tensorisation, options.tensorisation)
+    rextend_args.append(find_reextension_params(tensorisation, options.tensorisation))
     
     H_mod = _astimearray(H_mod)
     Ls_mod = [_astimearray(L) for L in Ls_mod]
@@ -135,7 +135,8 @@ def reshaping_extend(
         tensorisation, rextend_args
     )
 
-def reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation, t, ineq_set
+def reshapings_reduce(
+        options, H, jump_ops, rho_mod, tensorisation, t, ineq_set, rextend_args
     ):
     options = update_ineq(options, direction='down')
     inequalities = ineq_from_params(ineq_set, [options.inequalities[i][1] for i in 
@@ -158,7 +159,7 @@ def reshapings_reduce(options, H, jump_ops, rho_mod, tensorisation, t, ineq_set
         projection_nD(x, _mask_mod) for x in [H_mod] + [rho_mod] + 
         [L for L in jump_ops_mod]
     ]
-    rextend_args = find_reextension_params(tensorisation, options.tensorisation)
+    rextend_args.append(find_reextension_params(tensorisation, options.tensorisation))
 
     H_mod = _astimearray(H_mod)
     jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
@@ -185,7 +186,8 @@ def error_reducing(rho, options, ineq_set):
         dict_nD_reshapings(tensorisation, inequalities, options_copy, usage = 'reduce')
     )
     proj_reducing = projection_nD(rho, _mask)
-    return jnp.linalg.norm(proj_reducing[0]-rho, ord='nuc')
+    # print(proj_reducing[0], rho[0])
+    return jnp.linalg.norm(proj_reducing-rho, ord='nuc')
 # 
 def trace_ineq_states(tensorisation, inequalities, rho):
     # compute a partial trace only on the states concerned by the inequalities (ie that

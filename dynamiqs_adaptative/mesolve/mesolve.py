@@ -39,7 +39,8 @@ from .merouchon import MERouchon1
 
 from ..estimator.mesolve_fcts import (
     mesolve_estimator_init,
-    mesolve_iteration_prepare
+    mesolve_iteration_prepare,
+    mesolve_format_sols
 )
 from ..estimator.saves import (
     collect_saved_estimator, 
@@ -133,7 +134,6 @@ def mesolve(
     exp_ops = jnp.asarray(exp_ops, dtype=cdtype()) if exp_ops is not None else None
     estimator = jnp.zeros(1, dtype = cdtype())
     dt0 = None
-    rextend_args = None
 
     # === estimator part
     options, Hred, Lsred, _mask, tensorisation = (
@@ -166,25 +166,30 @@ def mesolve(
         time_all = []
         inequalities_all = []
         while True: # do while syntax in Python
-            print("esti donnéééééé", estimator)
+            t0 = time.time()
             mesolve_iteration = _vectorized_mesolve(
                 H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, 
                 options, Hred_mod, Lsred_mod, _mask_mod, estimator, dt0, ineq_set
             )
+            print("temps de run", time.time() - t0)
             mesolve_iteration = collect_saved_iteration(
-                mesolve_iteration, estimator_all, rextend_args, options
+                mesolve_iteration, estimator_all, options
             )
             (
-                rho_all, estimator_all, time_all, inequalities_all,
                 L_reshapings, new_tsave, estimator, true_time, dt0, options, 
                 H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
                 tensorisation_mod, rextend_args
             ) = mesolve_iteration_prepare(
-                rho_all, estimator_all, time_all, inequalities_all,
-                L_reshapings, tsave, old_steps, options,
+                L_reshapings, rextend_args, tsave, old_steps, options,
                 mesolve_iteration, solver, ineq_set,
                 H, jump_ops, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, _mask_mod, 
                 tensorisation_mod, 
+            )
+            (
+                rho_all, estimator_all, time_all, inequalities_all
+            ) = mesolve_format_sols(
+                mesolve_iteration, rextend_args, rho_all, estimator_all, time_all, 
+                inequalities_all
             )
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # bcs the last step can be a wrong one
                 break # do while syntax
@@ -197,7 +202,7 @@ def mesolve(
         # (which are not JIT-compatible) to JAX arrays
         mesolve_result = _vectorized_mesolve(
             H, jump_ops, rho0, tsave, exp_ops, solver, gradient, options,
-            Hred, Lsred, _mask, estimator, dt0, ineq_set
+            Hred, Lsred, _mask, estimator, dt0, None
         )
     if options.estimator and not options.reshaping:
         # warn the user if the estimator's tolerance has been reached

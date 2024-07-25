@@ -17,9 +17,8 @@ from ..options import Options
 
 from .abstract_solver import State
 from ..estimator.saves import save_estimator
-from ..estimator.utils.warnings import check_max_reshaping_reached
 from .._utils import cdtype
-from ..estimator.reshaping_y import error_reducing
+from ..estimator.condition_reshapings import condition_diffrax
 
 
 class DiffraxSolver(BaseSolver):
@@ -62,35 +61,7 @@ class DiffraxSolver(BaseSolver):
 
             # stop the diffrax integration if condition is reached (we will then restart
             # a diffrax integration with a reshaping of H, L, rho)
-            def condition(state, **kwargs):
-                dt = state.tnext - state.tprev
-                index = state.save_state[0].save_index
-                dest = state.save_state[0].ys.estimator[index-1]
-                erreur_tol = ((state.tprev/kwargs['t1']) * 
-                    self.options.estimator_rtol * (self.solver.atol + 
-                    jnp.linalg.norm(state.y.rho, ord='nuc') * self.solver.rtol)
-                )
-                # jax.debug.print("error verif. err {a} tol {b}, only dest {o}", a=dest*dt, b=erreur_tol, o= dest)
-                # not_max = not check_max_reshaping_reached(self.options, self.Hred)
-                not_max = not check_max_reshaping_reached(self.options, self.Hred)
-                extend = jax.lax.cond((dest * dt >= erreur_tol) & 
-                    not_max, lambda: True, lambda: False
-                ) # we sould not reshape
-                # jax.debug.print("t0: {a} and tprev {b} and dt0 {c} ", a=kwargs['t0'], b=state.tprev, c=kwargs['dt0'])
-                # jax.debug.print("solverstate {ss}, {it}", ss=state.solver_state, it = state.num_steps)
-                error_red = error_reducing(state.y.rho, self.options, kwargs['args'][5])
-                reduce = jax.lax.cond(
-                    (dest * dt + error_red <= 
-                    erreur_tol/self.options.downsizing_rtol)
-                    & (len(state.y.rho[0]) > 100 & (state.num_steps > 3)), lambda: True, lambda: False # 100 bcs overhead too big to find useful to downsize such little matrices. 3 bcs the first iterations may look okay after an extension but it will rapidly goes up again
-                )
-                reduce = False
-                jax.debug.print("activation: e:{a} r:{b} and error seuil: {c}, and time: {tprev}"
-                , a=extend, b=reduce, c =erreur_tol, tprev = state.tprev)
-                # return extend
-                return jax.lax.cond(extend | reduce, lambda: True, lambda: False)
-            event = dx.DiscreteTerminatingEvent(cond_fn=condition)
-
+            event = dx.DiscreteTerminatingEvent(cond_fn=condition_diffrax(self))
             # === solve differential equation with diffrax
             solution = dx.diffeqsolve(
                 self.terms,

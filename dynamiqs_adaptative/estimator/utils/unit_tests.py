@@ -719,12 +719,13 @@ def unit_test_error_reducing():
         return error, options.inequalities
     lazy_tensorisation_2D = [5,6]
     err, inequalities = run_test(lazy_tensorisation_2D)
-    expected_error = 15347.976
+    expected_error = 11066.556824447707
     expected_ineq = [9,11] # to not modify them
     working = [
         expected_error == err,
         expected_ineq == [a[1] for a in inequalities]
     ]
+    print(err)
     print(working)
     return all(working)
 

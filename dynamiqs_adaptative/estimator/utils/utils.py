@@ -238,3 +238,16 @@ def find_reextension_params(current_tens, max_tens):
     )
     return fun
     return new_pos, old_pos, zeros_obj, fun
+
+
+def integrate_euler(derivatives, time, constant=0):
+    # Initialize the integral array with a constant
+    integral = np.zeros_like(time)
+    # Perform Euler integration
+    integral[0] = constant
+    for i in range(1, len(time)):
+        dt = time[i] - time[i-1]
+        if dt<0:
+            print("raise alarms", time[i], time[i-1])
+        integral[i] = integral[i-1] + derivatives[i] * dt 
+    return integral

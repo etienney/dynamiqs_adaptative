@@ -55,11 +55,13 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             # run the simulation for a smaller size than the defined tensorisation.
             # instead of really reducing the operators to a smaller sized space, we will
             # project all of them on a smaller sized space (the result is the same)
+
             t0 = time.time()    
             y_true = jnp.array(y.rho)
             rho = projection_nD(y_true, self._mask)
             t1 = time.time()
             # jax.debug.print("{a}", a= t121-t120)
+            derr = 0
             Hred = self.Hred(t)
             Lsred = jnp.stack([L(t) for L in self.Lsred])
             t2 = time.time()
@@ -68,7 +70,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             tmp = (-1j * Hred - 0.5 * LdL) @ rho + 0.5 * (Lsred @ rho @ Lsd).sum(0)
             drho = tmp + dag(tmp)
             t3 = time.time()
-            derr = 0
+            
             # jax.debug.print("{a} et {b}", a= t1-t0, b = t3-t1)
             return State(drho, derr)
 

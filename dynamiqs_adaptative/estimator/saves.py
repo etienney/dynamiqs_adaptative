@@ -7,6 +7,7 @@ from ..estimator.reshapings import projection_nD, extension
 from .estimator import compute_estimator
 from ..estimator.utils.utils import put_together_results
 from .._utils import cdtype
+from ..estimator.utils.utils import integrate_euler
 
 
 def save_estimator(t, y, args):
@@ -40,25 +41,18 @@ def collect_saved_estimator(results):
     return results
 
 
-def collect_saved_iteration(results, estimator_all, rextend_args, options):
+def collect_saved_iteration(results, estimator_all, options):
     tmp_dic=results.__dict__
     corrected_time = results._saved.time
     corrected_time = corrected_time[jnp.isfinite(corrected_time)]
     true_steps = len(corrected_time)
-    new_states = results.states.rho[:true_steps]
-    extended_states = []
-    for state in new_states:
-        extended_states.append(rextend_args(state))
+    corrected_states = results.states.rho[:true_steps]
     new_dest = results.estimator[:true_steps]
-    print(estimator_all)
-    if len(estimator_all) == 0:
-        est = integrate_euler(new_dest, corrected_time)
-    else:
-        est = integrate_euler(new_dest, corrected_time, estimator_all[-1][-2]) # -2 since the last step doesn't count
+    # print("estimator _all", estimator_all)
     inequalities = jnp.array([jnp.array(x) for x in (options.inequalities * true_steps)])
-    print("output estimators (der, int, time)!:", new_dest, est, corrected_time, inequalities)
+    # print("output estimators (der, int, time)!:", new_dest, est, corrected_time)
     new_save = Saved_estimator(
-        jnp.array(extended_states), None, None, est, corrected_time, inequalities
+        jnp.array(corrected_states), None, None, new_dest, corrected_time, inequalities
     )
     tmp_dic['_saved'] = new_save
     required_params = ['tsave', 'solver', 'gradient', 'options', '_saved', 'infos']
@@ -84,14 +78,4 @@ def collect_saved_reshapings_final(
     return results
 
 
-def integrate_euler(derivatives, time, constant=0):
-    # Initialize the integral array with a constant
-    integral = np.zeros_like(time)
-    # Perform Euler integration
-    integral[0] = constant
-    for i in range(1, len(time)):
-        dt = time[i] - time[i-1]
-        if dt<0:
-            print("raise alarms", time[i], time[i-1])
-        integral[i] = integral[i-1] + derivatives[i] * dt 
-    return integral
+
