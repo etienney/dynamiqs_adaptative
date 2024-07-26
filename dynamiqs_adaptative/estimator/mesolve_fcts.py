@@ -106,19 +106,19 @@ def mesolve_iteration_prepare(
         solver.rtol, rho_erreur
     )
     print(estimator_erreur, erreur_tol, dt0)
-    error_red = error_reducing(rho_erreur, options, ineq_set)
+    error_red = [error_reducing(rho_erreur, options, ineq_set), False]
     extending =  condition_extend(
         estimator_erreur, erreur_tol, not check_max_reshaping_reached(options, H_mod)
     )
-    print(jnp.logical_not(extending))
     if (extending):
         L_reshapings.append(1)
     elif (
-        condition_reducing(estimator_erreur, erreur_tol, error_red, 
+        condition_reducing(estimator_erreur * dt0, erreur_tol, error_red[0], 
         options.downsizing_rtol, len(rho_erreur[0]), len(true_time), 
         jnp.logical_not(extending))
     ): 
         print("reducing set")
+        error_red[1] = True
         L_reshapings.append(-1)
     te0 = time.time()
     if (L_reshapings[-1]==1
@@ -147,28 +147,28 @@ def mesolve_iteration_prepare(
     return (
         L_reshapings, new_tsave, estimator, true_time, dt0, options, 
         H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
-        tensorisation_mod, rextend_args
+        tensorisation_mod, rextend_args, error_red
     )
 
 def mesolve_format_sols(
         mesolve_iteration, rextend_args, rho_all, estimator_all, time_all, 
-        inequalities_all
+        inequalities_all, error_red
 ):
     new_states = mesolve_iteration.states
     extended_states = []
     extend = rextend_args[-2] if len(rextend_args)>=2 else rextend_args[0] # to account for the case where no extension have been made
     new_dest = mesolve_iteration.estimator
+    error_red = error_red[0] if error_red[1] else 0
     if len(estimator_all) == 0:
-        est = integrate_euler(new_dest, mesolve_iteration.time)
+        est = integrate_euler(new_dest, mesolve_iteration.time, error_red)
     else:
-        est = integrate_euler(new_dest, mesolve_iteration.time, estimator_all[-1][-2]) # -2 since the last step doesn't count
+        est = integrate_euler(new_dest, mesolve_iteration.time, error_red + estimator_all[-1][-2]) # -2 since the last step doesn't count
     for state in new_states:
         extended_states.append(extend(state))
     rho_all.append(extended_states)
     estimator_all.append(est)
     time_all.append(mesolve_iteration.time)
     inequalities_all.append(mesolve_iteration.inequalities)
-    
     return rho_all, estimator_all, time_all, inequalities_all
 
 
