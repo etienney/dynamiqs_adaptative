@@ -76,3 +76,4 @@ def update_ineq(options, direction):
 
 def ineq_from_params_list(coeffs, R):
     return lambda *args: sum(coeff * arg for coeff, arg in zip(coeffs, args)) < R
+

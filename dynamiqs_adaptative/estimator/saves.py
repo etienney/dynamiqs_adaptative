@@ -69,7 +69,8 @@ def collect_saved_reshapings_final(
     new_states = jnp.array(put_together_results(rho_all, 2))
     est = put_together_results(estimator_all, 2, True)
     time = put_together_results(time_all, 2, True)
-    ineqs = put_together_results(inequalities_all, 2, True)
+    ineqs = put_together_results(inequalities_all, 2)
+    ineqs = reduce_list_reshapings(ineqs)
     new_save = Saved_estimator(new_states, None, None, est, time, ineqs)
     tmp_dic['_saved'] = new_save
     required_params = ['tsave', 'solver', 'gradient', 'options', '_saved', 'infos']
@@ -78,4 +79,14 @@ def collect_saved_reshapings_final(
     return results
 
 
+def reduce_list_reshapings(lst):
+    reduced_lst = []
+    i = 0
+    while i < len(lst):
+        j = i + 1
+        while j < len(lst) and lst[j][0] == lst[i][0]:
+            j += 1
+        reduced_lst.append([lst[i][0], lst[i][1], [lst[i][2], lst[j-1][2]]])
+        i = j
+    return reduced_lst
 

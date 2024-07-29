@@ -33,7 +33,6 @@ from .condition_reshapings import (
 from ..estimator.utils.utils import integrate_euler
 
 
-
 def mesolve_estimator_init(options, H, jump_ops, tsave):
     # to init the arguments necessary for the estimator and the reshaping
     if options.estimator:
@@ -151,8 +150,8 @@ def mesolve_iteration_prepare(
     )
 
 def mesolve_format_sols(
-        mesolve_iteration, rextend_args, rho_all, estimator_all, time_all, 
-        inequalities_all, error_red
+    mesolve_iteration, rextend_args, error_red, tensorisation_mod_simu,
+    rho_all, estimator_all, time_all, inequalities_all
 ):
     new_states = mesolve_iteration.states
     extended_states = []
@@ -168,7 +167,14 @@ def mesolve_format_sols(
     rho_all.append(extended_states)
     estimator_all.append(est)
     time_all.append(mesolve_iteration.time)
-    inequalities_all.append(mesolve_iteration.inequalities)
+    len_time = len(mesolve_iteration.time)
+    long_tensorisation_mod = [tensorisation_mod_simu] * len_time # just to make it the same size as the other mesolve_iteration.*
+    inequalities_all.append([[
+        mesolve_iteration.inequalities[i][1], 
+        long_tensorisation_mod[i], 
+        mesolve_iteration.time[i]]
+        for i in range(len_time)]
+    )
     return rho_all, estimator_all, time_all, inequalities_all
 
 

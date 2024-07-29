@@ -62,7 +62,7 @@ class Options(eqx.Module):
         downsizing_rtol: Defines how much your algorithm wants to downsize you matrix
             size. You don't want it too low, otherwise the algorithm will try too often 
             to downsize the matrix. 
-            The default value (100) has been set empirically.
+            The default value (200) has been set empirically.
         inequalities: (expects estimator and reshaping to be 'True', tensorisation to be 
             given)
             For a n-dimensional object, you can give your own truncature to the
@@ -96,7 +96,7 @@ class Options(eqx.Module):
     inequalities: list | None = None
     estimator_rtol : float | None = 500
     trunc_size: Array | None = None
-    downsizing_rtol : float | None = 100 
+    downsizing_rtol : float | None = 200 
 
 
     def __init__(
@@ -113,7 +113,7 @@ class Options(eqx.Module):
         inequalities: list | None = None,
         estimator_rtol : float | None = 500,
         trunc_size: Array | None = None,
-        downsizing_rtol : float | None = 100,
+        downsizing_rtol : float | None = 200,
     ):
         
         if progress_meter is None:

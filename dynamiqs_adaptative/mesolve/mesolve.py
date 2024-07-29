@@ -167,6 +167,7 @@ def mesolve(
         inequalities_all = []
         while True: # do while syntax in Python
             t0 = time.time()
+            tensorisation_mod_simu = tensorisation_mod[:]
             mesolve_iteration = _vectorized_mesolve(
                 H_mod, jump_ops_mod, rho_mod, new_tsave, exp_ops, solver, gradient, 
                 options, Hred_mod, Lsred_mod, _mask_mod, estimator, dt0, ineq_set
@@ -188,8 +189,8 @@ def mesolve(
             (
                 rho_all, estimator_all, time_all, inequalities_all
             ) = mesolve_format_sols(
-                mesolve_iteration, rextend_args, rho_all, estimator_all, time_all, 
-                inequalities_all, error_red
+                mesolve_iteration, rextend_args, error_red, tensorisation_mod_simu,
+                rho_all, estimator_all, time_all, inequalities_all
             )
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # bcs the last step can be a wrong one
                 break # do while syntax
