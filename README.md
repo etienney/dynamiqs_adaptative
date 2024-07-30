@@ -26,8 +26,7 @@ def H2(n_a,n_b, alpha = 0):
         (tensorial_a_a@tensorial_a_a - jnp.identity(n_a*n_b)*alpha**2) @ 
         dq.dag(tensorial_a_b) + 
         dq.dag(tensorial_a_a@tensorial_a_a - jnp.identity(n_a*n_b)*alpha**2) @ 
-        tensorial_a_b - 
-        tensorial_a_b - dq.dag(tensorial_a_b)
+        tensorial_a_b 
     )
     return H
 def rho2(n_a,n_b):
@@ -44,7 +43,7 @@ def ineq(a, b):
     return a+b
 def ineq2(a, b):
     return 3*a+b
-inequalities = [[ineq, 15], [ineq2, 13]]
+inequalities = [[ineq, 64], [ineq2, 21]]
 res2 = dq.mesolve(H2(n_a, n_b, 1.0), jump_ops2(n_a, n_b), rho2(n_a, n_b), t_span2, 
     solver=dq.solver.Tsit5(), gradient=dq.gradient.Autograd(), 
     options = dq.Options(tensorisation=tensorisation, inequalities=inequalities)
