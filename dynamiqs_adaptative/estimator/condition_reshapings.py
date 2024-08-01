@@ -56,7 +56,7 @@ def condition_diffrax(self):
         # jax.debug.print("error verif. err {a} tol {b}, only dest {o}", a=dest*dt, b=erreur_tol, o= dest)
         # jax.debug.print("t0: {a} and tprev {b} and dt0 {c} ", a=kwargs['t0'], b=state.tprev, c=kwargs['dt0'])
         jax.debug.print("e:{a} r:{b}, time: {tprev}"
-        , a=extend, b=reduce, c =erreur_tol, tprev = state.tprev)
+        , a=extend, b=reduce, tprev = state.tprev)
         return jax.lax.cond(extend | reduce, lambda: True, lambda: False)
     return condition
 
