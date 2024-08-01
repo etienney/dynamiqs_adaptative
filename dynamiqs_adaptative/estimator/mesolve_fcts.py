@@ -88,31 +88,30 @@ def mesolve_iteration_prepare(
     print("largest tens reached", tensorisation_mod[-1])
     rho_mod =  mesolve_iteration.states[-2]
     print(rho_mod.shape)
-    estimator = jnp.zeros(1, cdtype())
-    estimator = estimator.at[0].set(mesolve_iteration.estimator[-2])
-    print("we restart with this base value", estimator)
     # useful to recompute the error to see if it was an extend or a reduce
     rho_erreur = mesolve_iteration.states[-1]
+    destimator_erreur = mesolve_iteration.destimator[-1]
     estimator_erreur = mesolve_iteration.estimator[-1]
+    erreur_tol = erreur_tol_fct(
+        options.estimator_rtol, solver.atol, 
+        solver.rtol, rho_erreur
+    )
+    print(destimator_erreur, estimator_erreur, erreur_tol, dt0)
     L_reshapings.append(0) # to state that a priori no reshapings is done (for the last solution)
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
         print("""WARNING: your space wasn't large enough to capture the dynamic up to
               the tolerance. Give a larger max space[link to what it means] or try to 
               see if your dynamic isn't exploding""")
-    erreur_tol = erreur_tol_fct(
-        (true_time[-1]+1e-16), tsave[-1], options.estimator_rtol, solver.atol, 
-        solver.rtol, rho_erreur
-    )
-    print(estimator_erreur, erreur_tol, dt0)
     error_red = [error_reducing(rho_erreur, options, ineq_set), False]
     extending =  condition_extend(
-        estimator_erreur, erreur_tol, not check_max_reshaping_reached(options, H_mod)
+        destimator_erreur, erreur_tol, not check_max_reshaping_reached(options, H_mod)
     )
     if (extending):
         L_reshapings.append(1)
     elif (
-        condition_reducing(estimator_erreur * dt0, erreur_tol, error_red[0], 
+        condition_reducing((true_time[-1]+1e-16), tsave[-1], 
+        estimator_erreur[0], erreur_tol, error_red[0], 
         options.downsizing_rtol, len(rho_erreur[0]), len(true_time), 
         jnp.logical_not(extending))
     ): 
@@ -140,6 +139,11 @@ def mesolve_iteration_prepare(
             true_time[-2], ineq_set, rextend_args)
         )
         print("temps du reshaping: ", time.time() - te0)
+        # we need to restart the estimatopr with the previous value
+    estimator = jnp.zeros(1, cdtype())
+    error_red_to_add = error_red[0] if error_red[1] else 0
+    estimator = estimator.at[0].set(mesolve_iteration.estimator[-2][0] + error_red_to_add) 
+    print("we restart with this base value", estimator)
     print("L_reshapings:", L_reshapings)
     # print("Ls", [jump_ops_mod[0](0)[i][i].item() for i in range(len(jump_ops_mod[0](0)[0]))], "\n", [Lsred_mod[0](0)[i][i].item() for i in range(len(Lsred_mod[0](0)[0]))], "\nrho", [rho_mod[i][i].item() for i in range(len(rho_mod[0]))], "\n mask", _mask_mod[0], "\ntensor", tensorisation_mod, "\nest", true_estimator)
     print(rho_mod.shape)
@@ -156,12 +160,12 @@ def mesolve_format_sols(
     new_states = mesolve_iteration.states
     extended_states = []
     extend = rextend_args[-2] if len(rextend_args)>=2 else rextend_args[0] # to account for the case where no extension have been made
-    new_dest = mesolve_iteration.estimator
-    error_red = error_red[0] if error_red[1] else 0
-    if len(estimator_all) == 0:
-        est = integrate_euler(new_dest, mesolve_iteration.time, error_red)
-    else:
-        est = integrate_euler(new_dest, mesolve_iteration.time, error_red + estimator_all[-1][-2]) # -2 since the last step doesn't count
+    est = mesolve_iteration.estimator
+    # error_red = error_red[0] if error_red[1] else 0
+    # if len(estimator_all) == 0:
+    #     est = integrate_euler(new_dest, mesolve_iteration.time, error_red)
+    # else:
+    #     est = integrate_euler(new_dest, mesolve_iteration.time, error_red + estimator_all[-1][-2]) # -2 since the last step doesn't count
     for state in new_states:
         extended_states.append(extend(state))
     rho_all.append(extended_states)

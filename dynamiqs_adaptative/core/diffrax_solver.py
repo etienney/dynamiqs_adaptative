@@ -71,7 +71,9 @@ class DiffraxSolver(BaseSolver):
                 dt0=self.dt0,
                 y0=State(
                     self.y0, # the solution at current time
+                    jnp.zeros(1, dtype = cdtype()),
                     self.estimator, # the estimator at current time
+                    self.t0.astype(cdtype()), # the time
                 ) if self.options.estimator else self.y0,
                 discrete_terminating_event=event if self.options.reshaping else None,
                 saveat=saveat,

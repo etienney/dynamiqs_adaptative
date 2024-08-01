@@ -37,12 +37,14 @@ class Saved(eqx.Module):
 
 class Saved_estimator(Saved):
     # save additional data needed to compute the estimator
+    destimator: Array | None
     estimator: Array | None
     time: Array | None
     inequalities: Array | None
     
-    def __init__(self, ysave, Esave, extra, estimator, time, inequalities):
+    def __init__(self, ysave, Esave, extra, destimator, estimator, time, inequalities):
         super().__init__(ysave, Esave, extra)
+        self.destimator = destimator
         self.estimator = estimator
         self.time = time
         self.inequalities = inequalities
@@ -75,6 +77,10 @@ class Result(eqx.Module):
         else:
             raise ValueError('Calling estimator without using it does not make sense. '
                              'Try putting \'options = dq.Options(estimator=True)\'')
+    @property
+    def destimator(self) -> Array:
+        return self._saved.destimator
+
     
     @property
     def time(self) -> PyTree | None:

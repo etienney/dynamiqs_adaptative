@@ -62,6 +62,8 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             t1 = time.time()
             # jax.debug.print("{a}", a= t121-t120)
             derr = 0
+            err = 0
+            t = 0
             Hred = self.Hred(t)
             Lsred = jnp.stack([L(t) for L in self.Lsred])
             t2 = time.time()
@@ -72,7 +74,7 @@ class MEDiffraxSolver(DiffraxSolver, MESolver):
             t3 = time.time()
             
             # jax.debug.print("{a} et {b}", a= t1-t0, b = t3-t1)
-            return State(drho, derr)
+            return State(drho, derr, err, t)
 
         def vector_field(t, y, _):  # noqa: ANN001, ANN202
             Ls = jnp.stack([L(t) for L in self.Ls])
