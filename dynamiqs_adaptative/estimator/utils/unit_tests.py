@@ -377,31 +377,32 @@ def unit_test_degree_guesser_nD():
     t_a = tensor(a_a,identity_b,identity_c) #tensorial operations, verified to be in the logical format a_a (x) identity_b
     t_b = tensor(identity_a,a_b,identity_c)
     t_c = tensor(identity_a,identity_b,a_c)
+    ide = tensor(identity_a,identity_b,identity_c)
     obj = (
         t_a@t_b@t_a@t_a@t_a@t_a@t_a@t_a+ t_b@t_a + 
         tensor(identity_a,identity_b,identity_c) + t_b@t_a@t_a
         +t_c@t_a@t_a@t_a +dag(t_b)@dag(t_b)@t_c@t_c
     )
     obj2 = (
-        (t_a@t_a)@dag(t_b) + 
-    dag(t_a@t_a)@t_b - 
-    t_b -
-    dag(t_b)
+        (t_a@t_a)@dag(t_b) + dag(t_a@t_a)@t_b - t_b - dag(t_b)
     )
-    ide = tensor(identity_a,identity_b,identity_c)
+    obj3 = ((t_a@t_a) - ide)@dag(t_b) + t_b@(dag(t_a@t_a) - ide)
     objdeg = degree_guesser_nD(obj, list(tensorisation))
     obj2deg = degree_guesser_nD(obj2, list(tensorisation))
+    obj3deg = degree_guesser_nD(obj3, list(tensorisation))
     idedeg = degree_guesser_nD(ide, list(tensorisation))
     if (
         jnp.array_equal(objdeg,[3,2,2]) and
         jnp.array_equal(idedeg,[0,0,0]) and
-        jnp.array_equal(obj2deg,[2,1,0])
+        jnp.array_equal(obj2deg,[2,1,0]) and 
+        jnp.array_equal(obj3deg,[2,1,0])
     ):
         return True
     else:
         print(
             f'{objdeg} not [3,2,2] ?', 
-            f'{obj2deg} not [2,1,0] ?', 
+            f'{obj2deg} not [2,1,0] ?',
+            f'{obj3deg} not [2,1,0] ?', 
             f'{idedeg} not [0,0,0] ?'
         )
         return False

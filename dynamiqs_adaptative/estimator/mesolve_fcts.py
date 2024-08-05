@@ -105,12 +105,14 @@ def mesolve_iteration_prepare(
               see if your dynamic isn't exploding""")
     error_red = [error_reducing(rho_erreur, options, ineq_set), False]
     extending =  condition_extend(
-        destimator_erreur, erreur_tol, not check_max_reshaping_reached(options, H_mod)
+        true_time[-1], tsave[-1],
+        estimator_erreur[0], destimator_erreur, erreur_tol, 
+        not check_max_reshaping_reached(options, H_mod)
     )
     if (extending):
         L_reshapings.append(1)
     elif (
-        condition_reducing((true_time[-1]+1e-16), tsave[-1], 
+        condition_reducing(true_time[-1], tsave[-1], 
         estimator_erreur[0], erreur_tol, error_red[0], 
         options.downsizing_rtol, len(rho_erreur[0]), len(true_time), 
         jnp.logical_not(extending))

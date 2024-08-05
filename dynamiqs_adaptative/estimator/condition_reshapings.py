@@ -6,16 +6,18 @@ from .utils.warnings import check_max_reshaping_reached
 
 def erreur_tol_fct(estimator_rtol, solver_atol, solver_rtol, rho):
     erreur_tol = (
-        estimator_rtol * (solver_atol + 
-        jnp.linalg.norm(rho, ord='nuc') * solver_rtol)
-    ) 
+        estimator_rtol * (solver_atol + 1 * solver_rtol)
+    ) # 1 since we expect jnp.linalg.norm(rho, ord='nuc') = 1
     return erreur_tol
 
 
-def condition_extend(erreur, erreur_tol, max_not_reached):
-    extend = jax.lax.cond(((erreur >= erreur_tol) & 
+def condition_extend(t_event, t1, erreur, derreur, erreur_tol, max_not_reached):
+    # extend = jax.lax.cond(((derreur >= erreur_tol) & 
+    #     max_not_reached), lambda: True, lambda: False
+    # ) # derivative condition
+    extend = jax.lax.cond(((erreur >= ((t_event + 1e-16)/t1) * erreur_tol) & 
         max_not_reached), lambda: True, lambda: False
-    )
+    ) # integrate condition
     return extend
 
 
@@ -23,6 +25,7 @@ def condition_reducing(
     t_event, t1, erreur, erreur_tol, error_red, downsizing_rtol, taille_rho, steps, 
     not_extending
 ):  
+    jax.debug.print("error red{error_red}, sum{sum}", error_red=error_red, sum=(erreur + error_red))
     reduce = jax.lax.cond(
         ((erreur + error_red) <= ((t_event + 1e-16)/t1) * (erreur_tol/downsizing_rtol))
         & (taille_rho > 10) & (steps > 5) & (not_extending), 
@@ -45,7 +48,10 @@ def condition_diffrax(self):
             self.solver.rtol, state.y.rho
         )
         not_max = not check_max_reshaping_reached(self.options, self.Hred)
-        extend = condition_extend(dest, erreur_tol, not_max)
+        extend = condition_extend(
+            state.tprev, kwargs['t1'], 
+            est, dest, erreur_tol, not_max
+        )
         error_red = error_reducing(state.y.rho, self.options, kwargs['args'][5])
         not_extending = jnp.logical_not(extend)
         reduce = condition_reducing(
