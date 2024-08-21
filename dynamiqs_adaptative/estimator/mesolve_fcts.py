@@ -23,7 +23,7 @@ from .reshaping_y import (
     error_reducing,
     reshaping_extend,
     reshapings_reduce,
-    reshaping_init
+    re_timearray
 )
 from .condition_reshapings import (
     erreur_tol_fct,
@@ -61,8 +61,8 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
         _mask = mask(H0, dict_nD(tensorisation, inequalities))
         Hred, *Lsred = [projection_nD(x, _mask) for x in [H0] + list(L0)]
         # reconvert to Timearray args
-        Hred = _astimearray(Hred)
-        Lsred = [_astimearray(L) for L in Lsred]
+        Hred = re_timearray(Hred, H)
+        Lsred = [re_timearray(L, or_L) for L, or_L in zip(Lsred, jump_ops)]
         # print(Hred, Lsred, jump_ops, type(Hred), type(Lsred), type(jump_ops))
         options = Options(**tmp_dic)
     else:

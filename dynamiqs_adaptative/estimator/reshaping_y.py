@@ -5,7 +5,6 @@ from .reshapings import (
 from .inequalities import generate_rec_ineqs, ineq_from_params
 from ..core._utils import _astimearray
 from ..options import Options
-
 import jax.numpy as jnp
 from .inequalities import generate_rec_ineqs, generate_rec_func, update_ineq
 from .utils.utils import (
@@ -15,10 +14,12 @@ from .utils.utils import (
     find_reextension_params,
     to_hashable
 )
+from ..time_array import ModulatedTimeArray, PWCTimeArray, ConstantTimeArray, pwc
 import copy
 
+
 def reshaping_init(
-         options, H, jump_ops, Hred, Lsred, _mask, rho0, tensorisation, tsave, atol
+         options, H, jump_ops, rho0, tensorisation, tsave, atol
     ):
     # On commence en diminuant beaucoup la taille par rapport à la saisie utiliateur
     # qui correspond à la taille maximal atteignable
@@ -70,11 +71,13 @@ def reshaping_init(
         ]
         options=Options(**tmp_dic) 
 
+        H_array = H.array
+        Ls_array = jnp.stack([L.array for L in jump_ops])
         temp = red_ext_full(
-            [H(tsave[0])] + [rho0] + [L(tsave[0]) for L in jump_ops],
+            [H_array] + [rho0] + [L for L in Ls_array],
             tensorisation, inequalities, options
         )
-        H_mod, rho0_mod, *jump_ops_mod = temp[0]
+        H_mod, rho0_mod, *Ls_mod = temp[0]
         tensorisation_mod = temp[1]
         _mask_mod = mask(
             H_mod, 
@@ -82,24 +85,25 @@ def reshaping_init(
         )
         Hred_mod, rho0_mod, *Lsred_mod = [
             projection_nD(x, _mask_mod) for x in [H_mod] + [rho0_mod] + 
-            [L for L in jump_ops_mod]
+            [L for L in Ls_mod]
         ]
         rextend_args.append(find_reextension_params(tensorisation_mod, options.tensorisation))
         ineq_set = to_hashable(ineq_set)
         
-        H_mod = _astimearray(H_mod)
-        jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
-        Hred_mod = _astimearray(Hred_mod)
-        Lsred_mod = [_astimearray(L) for L in Lsred_mod]
-        return (options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, 
+        H_mod = re_timearray(H_mod, H)
+        Ls_mod = [re_timearray(L, or_L) for L,or_L in zip(Ls_mod, jump_ops)]
+        Hred_mod = re_timearray(Hred_mod, H)
+        Lsred_mod = [re_timearray(L, or_L) for L,or_L in zip(Lsred_mod, jump_ops)]
+        return (options, H_mod, Ls_mod, Hred_mod, Lsred_mod, rho0_mod, _mask_mod, 
             tensorisation_mod, ineq_set, rextend_args
         )
     
+
 def reshaping_extend(
         options, H, Ls, rho, tensorisation, t, ineq_set, rextend_args
     ):
-    H = H(t)
-    Ls = jnp.stack([L(t) for L in Ls])
+    H_array = H.array
+    Ls_array = jnp.stack([L.array for L in Ls])
     old_inequalities = ineq_from_params(ineq_set, [options.inequalities[i][1] for i in 
         range(len(options.inequalities))]
     )
@@ -116,7 +120,7 @@ def reshaping_extend(
         rho_mod, 
         jnp.array(dict_nD_reshapings(tensorisation, inequalities, options, 'proj'))
     )
-    temp = red_ext_full([H] + [L for L in Ls], 
+    temp = red_ext_full([H_array] + [L for L in Ls_array], 
         tensorisation_maker(options.tensorisation), inequalities, options
     )
     H_mod, *Ls_mod = temp[0]
@@ -126,27 +130,30 @@ def reshaping_extend(
     ]
     rextend_args.append(find_reextension_params(tensorisation, options.tensorisation))
     
-    H_mod = _astimearray(H_mod)
-    Ls_mod = [_astimearray(L) for L in Ls_mod]
-    Hred_mod = _astimearray(Hred_mod)
-    Lsred_mod = [_astimearray(L) for L in Lsred_mod]
+    H_mod = re_timearray(H_mod, H)
+    Ls_mod = [re_timearray(L, or_L) for L, or_L in zip(Ls_mod, Ls)]
+    Hred_mod = re_timearray(Hred_mod, H)
+    Lsred_mod = [re_timearray(L, or_L) for L, or_L in zip(Lsred_mod, Ls)]
     return (
         options, H_mod, Ls_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation, rextend_args
     )
 
+
 def reshapings_reduce(
-        options, H, jump_ops, rho_mod, tensorisation, t, ineq_set, rextend_args
+        options, H, Ls, rho_mod, tensorisation, t, ineq_set, rextend_args
     ):
+    H_array = H.array
+    Ls_array = jnp.stack([L.array for L in Ls])
     options = update_ineq(options, direction='down')
     inequalities = ineq_from_params(ineq_set, [options.inequalities[i][1] for i in 
         range(len(options.inequalities))]
     )
     temp = red_ext_full(
-        [H(t)] + [L(t) for L in jump_ops],
+        [H_array] + [L for L in Ls_array],
         tensorisation_maker(options.tensorisation), inequalities, options
     )
-    H_mod, *jump_ops_mod = temp[0]
+    H_mod, *Ls_mod = temp[0]
     rho_mod = red_ext_zeros(
         [rho_mod], tensorisation, inequalities, options
     )[0][0]
@@ -157,18 +164,19 @@ def reshapings_reduce(
     )
     Hred_mod, rho_mod, *Lsred_mod = [
         projection_nD(x, _mask_mod) for x in [H_mod] + [rho_mod] + 
-        [L for L in jump_ops_mod]
+        [L for L in Ls_mod]
     ]
     rextend_args.append(find_reextension_params(tensorisation, options.tensorisation))
     
-    H_mod = _astimearray(H_mod)
-    jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
-    Hred_mod = _astimearray(Hred_mod)
-    Lsred_mod = [_astimearray(L) for L in Lsred_mod]
+    H_mod = re_timearray(H_mod, H)
+    Ls_mod = [re_timearray(L, or_L) for L,or_L in zip(Ls_mod, Ls)]
+    Hred_mod = re_timearray(Hred_mod, H)
+    Lsred_mod = [re_timearray(L, or_L) for L,or_L in zip(Lsred_mod, Ls)]
     return (
-        options, H_mod, jump_ops_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
+        options, H_mod, Ls_mod, Hred_mod, Lsred_mod, rho_mod, _mask_mod, 
         tensorisation, rextend_args
     )
+
 
 def error_reducing(rho, options, ineq_set):
     # compute the error made by reducing rho
@@ -188,7 +196,8 @@ def error_reducing(rho, options, ineq_set):
     proj_reducing = projection_nD(rho, _mask)
     # print(proj_reducing[0], rho[0])
     return jnp.linalg.norm(proj_reducing-rho, ord='nuc')
-# 
+
+
 def trace_ineq_states(tensorisation, inequalities, rho):
     # compute a partial trace only on the states concerned by the inequalities (ie that
     # would be suppresed if one applied a reduction_nD on those)
@@ -196,3 +205,21 @@ def trace_ineq_states(tensorisation, inequalities, rho):
     return sum([rho[i][i] for i in dictio])
 
 
+def re_timearray(operator, old_operator):
+    # put the operator back to their original time_array form
+    # only work for ModulatedTimeArray and PWCTimeArray
+    time_array_class = type(old_operator)
+    if time_array_class==ModulatedTimeArray:
+        operator = ModulatedTimeArray(old_operator.f, operator, old_operator._disc_ts)
+    elif time_array_class==PWCTimeArray:
+        operator = pwc(old_operator.times, old_operator.values, operator)
+    elif time_array_class==ConstantTimeArray:
+        pass
+    else:
+        print(
+            'WARNING : If your operators are time dependant, using another class than '
+            'ModulatedTimeArray, PWCTimeArray, or ConstantTimeArray (constant) '
+            'the program\'s results won\'t be trustworthy'
+        )
+    operator = _astimearray(operator)
+    return operator
