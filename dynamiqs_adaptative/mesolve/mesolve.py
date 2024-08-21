@@ -190,7 +190,7 @@ def mesolve(
                 rho_all, estimator_all, time_all, inequalities_all
             ) = mesolve_format_sols(
                 mesolve_iteration, rextend_args, error_red, tensorisation_mod_simu,
-                rho_all, estimator_all, time_all, inequalities_all
+                L_reshapings, rho_all, estimator_all, time_all, inequalities_all
             )
             if true_time[-1]==tsave[-1] and L_reshapings[-1]!=1: # bcs the last step can be a wrong one
                 break # do while syntax

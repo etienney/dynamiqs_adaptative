@@ -160,7 +160,7 @@ def reshapings_reduce(
         [L for L in jump_ops_mod]
     ]
     rextend_args.append(find_reextension_params(tensorisation, options.tensorisation))
-
+    
     H_mod = _astimearray(H_mod)
     jump_ops_mod = [_astimearray(L) for L in jump_ops_mod]
     Hred_mod = _astimearray(Hred_mod)

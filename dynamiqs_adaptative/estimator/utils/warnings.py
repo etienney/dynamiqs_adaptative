@@ -11,9 +11,11 @@ def warning_bad_TimeArray(H, jump_ops):
     )
     if (cdn):
         jax.debug.print(
-            'WARNING : If your array is not time dependant, beware that '
+            'WARNING : If your array is time dependant, beware that '
             'the truncature required to compute the estimator won\'t be '
-            'trustworthy. See [link to the article] for more details. '
+            'trustworthy. This is because the degree of the operators as '
+            'polynomials in creation and anihilation operators may vary through time. '
+            'See [link to the article] for more details. '
         )
     return cdn
 

@@ -232,6 +232,7 @@ def find_reextension_params(current_tens, max_tens):
     old_pos = to_hashable(old_pos)
     new_pos = to_hashable(new_pos)
     size_max_obj = to_hashable(prod(max_tens))
+    # print(f'size rextend {size_max_obj}, old_pos {old_pos}, new_pos {new_pos}')
     zeros_obj = (jnp.zeros((size_max_obj, size_max_obj), cdtype()))
     fun = jax.jit(
         lambda obj: extension(obj, new_pos, old_pos, zeros_obj)

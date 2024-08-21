@@ -50,6 +50,7 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
             # Find the truncature needed to compute the estimator
             trunc_size = degree_guesser_nD_list(H0, L0, lazy_tensorisation)
             trunc_size = [2 * x.item() for x in jnp.array(trunc_size)]
+            print(f'trunc_size{trunc_size}')
             # for the "2 *" see [the article]
             tmp_dic['trunc_size'] = trunc_size
             warning_size_too_small(tensorisation, trunc_size)
@@ -87,7 +88,6 @@ def mesolve_iteration_prepare(
     print("tensorisation max", options.tensorisation)
     print("largest tens reached", tensorisation_mod[-1])
     rho_mod =  mesolve_iteration.states[-2]
-    print(rho_mod.shape)
     # useful to recompute the error to see if it was an extend or a reduce
     rho_erreur = mesolve_iteration.states[-1]
     destimator_erreur = mesolve_iteration.destimator[-1]
@@ -96,7 +96,7 @@ def mesolve_iteration_prepare(
         options.estimator_rtol, solver.atol, 
         solver.rtol, rho_erreur
     )
-    print(destimator_erreur, estimator_erreur, erreur_tol, dt0)
+    # print(destimator_erreur, estimator_erreur, erreur_tol, dt0)
     L_reshapings.append(0) # to state that a priori no reshapings is done (for the last solution)
     if check_max_reshaping_reached(options, H_mod):
         L_reshapings.append(2)
@@ -141,7 +141,7 @@ def mesolve_iteration_prepare(
             true_time[-2], ineq_set, rextend_args)
         )
         print("temps du reshaping: ", time.time() - te0)
-        # we need to restart the estimatopr with the previous value
+    # we need to restart the estimator with the previous value
     estimator = jnp.zeros(1, cdtype())
     error_red_to_add = error_red[0] if error_red[1] else 0
     estimator = estimator.at[0].set(mesolve_iteration.estimator[-2][0] + error_red_to_add) 
@@ -157,11 +157,11 @@ def mesolve_iteration_prepare(
 
 def mesolve_format_sols(
     mesolve_iteration, rextend_args, error_red, tensorisation_mod_simu,
-    rho_all, estimator_all, time_all, inequalities_all
+    L_reshapings, rho_all, estimator_all, time_all, inequalities_all
 ):
     new_states = mesolve_iteration.states
     extended_states = []
-    extend = rextend_args[-2] if len(rextend_args)>=2 else rextend_args[0] # to account for the case where no extension have been made
+    extend = rextend_args[-2] if (L_reshapings[-1]==1 or L_reshapings[-1]==-1) else rextend_args[-1] # to account for the case where no extension have been made
     est = mesolve_iteration.estimator
     # error_red = error_red[0] if error_red[1] else 0
     # if len(estimator_all) == 0:
@@ -169,6 +169,7 @@ def mesolve_format_sols(
     # else:
     #     est = integrate_euler(new_dest, mesolve_iteration.time, error_red + estimator_all[-1][-2]) # -2 since the last step doesn't count
     for state in new_states:
+        # print(f'state len {len(state[0])}')
         extended_states.append(extend(state))
     rho_all.append(extended_states)
     estimator_all.append(est)
