@@ -5,11 +5,11 @@ import jax
 import jax.numpy as jnp
 import itertools
 
-def degree_guesser_nD_list(H, L, tensorisation):
+def degree_guesser_nD_list(L, tensorisation):
     # designed for H and jump_ops specifically. Takes the max in the modes amongst all
-    k = (degree_guesser_nD(H, tensorisation),)
+    k=[]
     for x in L:             
-        k = k + (degree_guesser_nD(x, tensorisation),)
+        k = k + [degree_guesser_nD(x, tensorisation),]
     # we take the max amongst all, it's not optimal for computation time, but it's okay
     k = [max(x) for x in zip(*k)]
     return k

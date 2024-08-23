@@ -14,7 +14,13 @@ from .utils.utils import (
     find_reextension_params,
     to_hashable
 )
-from ..time_array import ModulatedTimeArray, PWCTimeArray, ConstantTimeArray, pwc
+from ..time_array import (
+    ModulatedTimeArray, 
+    PWCTimeArray, 
+    ConstantTimeArray, 
+    SummedTimeArray,
+    pwc
+)
 import copy
 
 
@@ -71,25 +77,32 @@ def reshaping_init(
         ]
         options=Options(**tmp_dic) 
 
-        H_array = H.array
+        temp = get_array(H)
+        len_H_array = temp[0]
+        H_array = temp[1:][0]
         Ls_array = jnp.stack([L.array for L in jump_ops])
         temp = red_ext_full(
-            [H_array] + [rho0] + [L for L in Ls_array],
+            H_array + [rho0] + [L for L in Ls_array],
             tensorisation, inequalities, options
         )
-        H_mod, rho0_mod, *Ls_mod = temp[0]
         tensorisation_mod = temp[1]
+        H_mod = temp[0][0:len_H_array]
+        rho0_mod = temp[0][len_H_array]
+        Ls_mod = temp[0][len_H_array+1:]
         _mask_mod = mask(
-            H_mod, 
+            H_mod[0], 
             jnp.array(dict_nD_reshapings(tensorisation_mod, inequalities, options, 'proj'))
         )
-        Hred_mod, rho0_mod, *Lsred_mod = [
-            projection_nD(x, _mask_mod) for x in [H_mod] + [rho0_mod] + 
+        temp = [
+            projection_nD(x, _mask_mod) for x in H_mod + [rho0_mod] + 
             [L for L in Ls_mod]
         ]
+        Hred_mod = temp[0:len_H_array]
+        rho0_mod = temp[len_H_array]
+        Lsred_mod = temp[len_H_array+1:]
         rextend_args.append(find_reextension_params(tensorisation_mod, options.tensorisation))
         ineq_set = to_hashable(ineq_set)
-        
+        # reconvert to Timearray args
         H_mod = re_timearray(H_mod, H)
         Ls_mod = [re_timearray(L, or_L) for L,or_L in zip(Ls_mod, jump_ops)]
         Hred_mod = re_timearray(Hred_mod, H)
@@ -102,7 +115,9 @@ def reshaping_init(
 def reshaping_extend(
         options, H, Ls, rho, tensorisation, t, ineq_set, rextend_args
     ):
-    H_array = H.array
+    temp = get_array(H)
+    len_H_array = temp[0]
+    H_array = temp[1:][0]
     Ls_array = jnp.stack([L.array for L in Ls])
     old_inequalities = ineq_from_params(ineq_set, [options.inequalities[i][1] for i in 
         range(len(options.inequalities))]
@@ -120,16 +135,19 @@ def reshaping_extend(
         rho_mod, 
         jnp.array(dict_nD_reshapings(tensorisation, inequalities, options, 'proj'))
     )
-    temp = red_ext_full([H_array] + [L for L in Ls_array], 
+    temp = red_ext_full(H_array + [L for L in Ls_array], 
         tensorisation_maker(options.tensorisation), inequalities, options
     )
-    H_mod, *Ls_mod = temp[0]
     tensorisation = temp[1]
-    Hred_mod, *Lsred_mod =  [
-        projection_nD(x, _mask_mod) for x in [H_mod] + [L for L in Ls_mod]
-    ]
+    H_mod = temp[0][0:len_H_array]
+    Ls_mod = temp[0][len_H_array:]
+    temp = [
+            projection_nD(x, _mask_mod) for x in H_mod + [L for L in Ls_mod]
+        ]
+    Hred_mod = temp[0:len_H_array]
+    Lsred_mod = temp[len_H_array:]
     rextend_args.append(find_reextension_params(tensorisation, options.tensorisation))
-    
+    # reconvert to Timearray args
     H_mod = re_timearray(H_mod, H)
     Ls_mod = [re_timearray(L, or_L) for L, or_L in zip(Ls_mod, Ls)]
     Hred_mod = re_timearray(Hred_mod, H)
@@ -143,31 +161,36 @@ def reshaping_extend(
 def reshapings_reduce(
         options, H, Ls, rho_mod, tensorisation, t, ineq_set, rextend_args
     ):
-    H_array = H.array
+    temp = get_array(H)
+    len_H_array = temp[0]
+    H_array = temp[1:][0]
     Ls_array = jnp.stack([L.array for L in Ls])
     options = update_ineq(options, direction='down')
     inequalities = ineq_from_params(ineq_set, [options.inequalities[i][1] for i in 
         range(len(options.inequalities))]
     )
-    temp = red_ext_full(
-        [H_array] + [L for L in Ls_array],
+    temp = red_ext_full(H_array + [L for L in Ls_array], 
         tensorisation_maker(options.tensorisation), inequalities, options
     )
-    H_mod, *Ls_mod = temp[0]
+    H_mod = temp[0][0:len_H_array]
+    Ls_mod = temp[0][len_H_array:]
     rho_mod = red_ext_zeros(
         [rho_mod], tensorisation, inequalities, options
     )[0][0]
     tensorisation = temp[1]
     _mask_mod = mask(
-        H_mod, 
+        H_mod[0], 
         jnp.array(dict_nD_reshapings(tensorisation, inequalities, options, 'proj'))
     )
-    Hred_mod, rho_mod, *Lsred_mod = [
-        projection_nD(x, _mask_mod) for x in [H_mod] + [rho_mod] + 
+    temp = [
+        projection_nD(x, _mask_mod) for x in H_mod + [rho_mod] + 
         [L for L in Ls_mod]
     ]
+    Hred_mod = temp[0:len_H_array]
+    rho_mod = temp[len_H_array]
+    Lsred_mod = temp[len_H_array+1:]
     rextend_args.append(find_reextension_params(tensorisation, options.tensorisation))
-    
+    # reconvert to Timearray args
     H_mod = re_timearray(H_mod, H)
     Ls_mod = [re_timearray(L, or_L) for L,or_L in zip(Ls_mod, Ls)]
     Hred_mod = re_timearray(Hred_mod, H)
@@ -213,6 +236,8 @@ def re_timearray(operator, old_operator):
         operator = ModulatedTimeArray(old_operator.f, operator, old_operator._disc_ts)
     elif time_array_class==PWCTimeArray:
         operator = pwc(old_operator.times, old_operator.values, operator)
+    elif time_array_class==SummedTimeArray:
+        operator = sum(re_timearray(x, y) for x, y in zip(operator, old_operator.timearrays))
     elif time_array_class==ConstantTimeArray:
         pass
     else:
@@ -223,3 +248,14 @@ def re_timearray(operator, old_operator):
         )
     operator = _astimearray(operator)
     return operator
+
+
+def get_array(operator):
+    # designed to get the array in case of a SummedTimeArray
+    if type(operator)!=SummedTimeArray:
+        return 1, [operator.array]
+    else:
+        L=[]
+        for x in operator.timearrays:
+            L.append(x.array)
+        return len(operator.timearrays), L

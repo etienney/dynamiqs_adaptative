@@ -23,7 +23,8 @@ from .reshaping_y import (
     error_reducing,
     reshaping_extend,
     reshapings_reduce,
-    re_timearray
+    re_timearray,
+    get_array
 )
 from .condition_reshapings import (
     erreur_tol_fct,
@@ -36,8 +37,9 @@ from ..estimator.utils.utils import integrate_euler
 def mesolve_estimator_init(options, H, jump_ops, tsave):
     # to init the arguments necessary for the estimator and the reshaping
     if options.estimator:
-        t0 = tsave[0]
-        H_array = H.array
+        temp = get_array(H)
+        len_H_array = temp[0]
+        H_array = temp[1:][0]
         Ls_array = jnp.stack([L.array for L in jump_ops])
         lazy_tensorisation = options.tensorisation
         tmp_dic=options.__dict__
@@ -48,9 +50,9 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
         if options.trunc_size is None:
             warning_bad_TimeArray(H, jump_ops)
             # Find the truncature needed to compute the estimator
-            trunc_size = degree_guesser_nD_list(H_array, Ls_array, lazy_tensorisation)
+            trunc_size = degree_guesser_nD_list(H_array + list(Ls_array), lazy_tensorisation)
             trunc_size = [2 * x.item() for x in jnp.array(trunc_size)]
-            print(f'trunc_size{trunc_size}')
+            print(f'trunc_size {trunc_size}')
             # for the "2 *" see [the article]
             tmp_dic['trunc_size'] = trunc_size
             warning_size_too_small(tensorisation, trunc_size)
@@ -58,12 +60,13 @@ def mesolve_estimator_init(options, H, jump_ops, tsave):
             zip(lazy_tensorisation, options.trunc_size)
         ] # -1 since list indexing starts at 0
         inequalities = generate_rec_ineqs(ineq_params)
-        _mask = mask(H_array, dict_nD(tensorisation, inequalities))
-        Hred, *Lsred = [projection_nD(x, _mask) for x in [H_array] + list(Ls_array)]
+        _mask = mask(H_array[0], dict_nD(tensorisation, inequalities))
+        temp = [projection_nD(x, _mask) for x in H_array + list(Ls_array)]
+        Hred = temp[0: len_H_array]
+        Lsred = temp[len_H_array:]
         # reconvert to Timearray args
         Hred = re_timearray(Hred, H)
         Lsred = [re_timearray(L, or_L) for L, or_L in zip(Lsred, jump_ops)]
-        # print(Hred, Lsred, jump_ops, type(Hred), type(Lsred), type(jump_ops))
         options = Options(**tmp_dic)
     else:
         # setup empty values
