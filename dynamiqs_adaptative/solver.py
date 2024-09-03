@@ -101,7 +101,7 @@ class _ODEAdaptiveStep(_ODESolver):
     safety_factor: float = 0.9
     min_factor: float = 0.2
     max_factor: float = 5.0
-    max_steps: int = 150
+    max_steps: int = 5000
 
 
 # === public solvers options
@@ -210,7 +210,7 @@ class Dopri5(_ODEAdaptiveStep):
         safety_factor: float = 0.9,
         min_factor: float = 0.2,
         max_factor: float = 5.0,
-        max_steps: int = 150,
+        max_steps: int = 5000,
     ):
         super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)
 
@@ -245,7 +245,7 @@ class Dopri8(_ODEAdaptiveStep):
         safety_factor: float = 0.9,
         min_factor: float = 0.2,
         max_factor: float = 5.0,
-        max_steps: int = 150,
+        max_steps: int = 5000,
     ):
         super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)
 
@@ -280,7 +280,7 @@ class Tsit5(_ODEAdaptiveStep):
         safety_factor: float = 0.9,
         min_factor: float = 0.2,
         max_factor: float = 5.0,
-        max_steps: int = 150,
+        max_steps: int = 5000,
     ):
         super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)
 
@@ -326,7 +326,7 @@ class Kvaerno3(_ODEAdaptiveStep):
         safety_factor: float = 0.9,
         min_factor: float = 0.2,
         max_factor: float = 5.0,
-        max_steps: int = 150,
+        max_steps: int = 5000,
     ):
         super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)
 
@@ -372,6 +372,6 @@ class Kvaerno5(_ODEAdaptiveStep):
         safety_factor: float = 0.9,
         min_factor: float = 0.2,
         max_factor: float = 5.0,
-        max_steps: int = 150,
+        max_steps: int = 5000,
     ):
         super().__init__(rtol, atol, safety_factor, min_factor, max_factor, max_steps)

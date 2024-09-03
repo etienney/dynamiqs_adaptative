@@ -129,7 +129,7 @@ class FixedSolver(DiffraxSolver):
             return f'{self.nsteps} steps'
 
     stepsize_controller: dx.AbstractStepSizeController = dx.ConstantStepSize()
-    max_steps: int = 150  # TODO: fix hard-coded max_steps
+    max_steps: int = 5000  # TODO: fix hard-coded max_steps
 
     @property
     def dt0(self) -> float:
