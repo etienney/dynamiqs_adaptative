@@ -172,7 +172,6 @@ def mesolve_format_sols(
     # else:
     #     est = integrate_euler(new_dest, mesolve_iteration.time, error_red + estimator_all[-1][-2]) # -2 since the last step doesn't count
     for state in new_states:
-        # print(f'state len {len(state[0])}')
         extended_states.append(extend(state))
     rho_all.append(extended_states)
     estimator_all.append(est)

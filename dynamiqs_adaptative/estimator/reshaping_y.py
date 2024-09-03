@@ -239,7 +239,8 @@ def re_timearray(operator, old_operator):
     elif time_array_class==SummedTimeArray:
         operator = sum(re_timearray(x, y) for x, y in zip(operator, old_operator.timearrays))
     elif time_array_class==ConstantTimeArray:
-        pass
+        if len(operator)==1: # to accept constant time array in H
+            operator = operator[0]
     else:
         print(
             'WARNING : If your operators are time dependant, using another class than '
