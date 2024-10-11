@@ -27,3 +27,16 @@ Depending on ones needs some subspaces may be more interesting than others. We a
 ```shell
 pip install git+https://github.com/etienney/dynamiqs_adaptative.git
 ```
+
+
+# Examples
+
+## Truncation estimator 
+
+
+## Adaptative solver
+
+
+## Non-trivial truncations
+
+The branch "dynamiqs_adaptative - Inequalities ab initio" allows to run faster a simulation that would only need to use some non-trivial truncations.
