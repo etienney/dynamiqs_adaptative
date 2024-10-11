@@ -1,12 +1,9 @@
-<script type="text/javascript" async
-  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
-</script>
 # Dynamiqs_adaptative
 A version of dynamiqs implementing a solver adaptative in the size of the modes for the Lindblad master equation.
 
 ## Truncation estimator 
 
-This version of dynamiqs implements an estimator of the error made by the truncation from a infinite Fock Hilbert $$\mathcal{H}$$ space to a finite one $$\mathcal{H}_N$$.
+This version of dynamiqs implements an estimator of the error made by the truncation from an infinite Fock Hilbert space $$\mathcal{H}$$ to a finite one $$\mathcal{H}_N$$.
 
 ## Adaptative solver
 
