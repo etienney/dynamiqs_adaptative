@@ -33,11 +33,36 @@ pip install git+https://github.com/etienney/dynamiqs_adaptative.git
 
 ## Truncation estimator 
 
+This is a basic example of a 1-mode dynamic defined in H, jump_ops, and an initial rho, with the adaptative solver using all its options.
+```python
+import dynamiqs_adaptative as dq
+import jax.numpy as jnp
+dq.set_precision('double') 
 
+def H(n):
+    return jnp.zeros((n,n))
+def jump_ops(n, alpha=1.0):
+    a = dq.destroy(n)
+    kappa=1.0
+    return [jnp.sqrt(kappa)*(a@a-jnp.identity(n)*alpha**2)]
+def rho(n):
+    return dq.fock_dm(n,0) #|0><0|
+
+ntemps, steps = 1.0, 100
+t_span = jnp.linspace(0, ntemps, steps)
+n=70 
+tensorisation=(n,) # We have to specify to the computer that the density matrix is defined as 1-mode of size n
+res = dq.mesolve(
+    H(n), jump_ops(n), rho(n), t_span,
+    solver=dq.solver.Tsit5(atol= 1e-14, rtol= 1e-14, max_steps = 10000),
+    options = dq.Options(estimator=True, tensorisation=tensorisation)
+)
+print(res)
+```
 
 ## Adaptative solver
 
-This in an example of a reshaping for some dynamic defined in H, jump_ops, and an initial rho, with the adaptative solver using all its options.
+This is a basic example of a simulation with dynamical reshaping for a 1-mode dynamic defined in H, jump_ops, and an initial rho, with the adaptative solver using all its options.
 ```python
 import dynamiqs_adaptative as dq
 
@@ -51,8 +76,28 @@ initial_inequality, extend_by, reduce_by = 50, 4, 4 # such that we select some i
 inequalities = [[lambda a: a, initial_inequality, extend_by, reduce_by]] # a list of some inequalities set as [the inequality as a lambda function, the initial parameter for those inequalites, by how much we extend the parameter that control via the inequality the states we look at, by how much we reduce it]
 
 res = dq.mesolve(
-    H(n), jump_ops(n), rho(n), t_span, solver=dq.solver.Tsit5(atol = solver_atol, rtol = solver_rtol, max_steps=10000), 
-    options = dq.Options(estimator=True, reshaping=True, tensorisation=tensorisation, inequalities=inequalities,estimator_rtol=estimator_rtol, downsizing_rtol=downsizing_rtol)
+    H(n), jump_ops(n), rho(n), t_span, 
+    solver=dq.solver.Tsit5(atol = solver_atol, rtol = solver_rtol, max_steps=10000), 
+    options = dq.Options(estimator=True, reshaping=True, tensorisation=tensorisation, inequalities=inequalities,
+    estimator_rtol=estimator_rtol, downsizing_rtol=downsizing_rtol)
+)
+```
+
+This is the same for a 2-mode simulation using some non-trivial truncation.
+```python
+import dynamiqs_adaptative as dq
+n_a, n_b = 60, 30
+tensorisation=(n_a, n_b)
+solver_atol, solver_rtol = 1e-14, 1e-14
+estimator_rtol = 50000000
+downsizing_rtol = 5
+def ineq(a, b):
+    return 0.5*a+b
+inequalities = [[ineq, 6, 7, 5]]
+res = dq.mesolve(H(n_a, n_b), jump_ops(n_a, n_b), rho(n_a, n_b), t_span, 
+    solver=dq.solver.Tsit5(atol = solver_atol, rtol = solver_rtol, max_steps=3000), 
+    options = dq.Options(estimator=True, reshaping=True, tensorisation=tensorisation, inequalities=inequalities,
+    estimator_rtol=estimator_rtol, downsizing_rtol=downsizing_rtol)
 )
 ```
 
