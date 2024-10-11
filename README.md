@@ -71,7 +71,7 @@ Simulation size  : (36,)
 Original size    : (40,)
 Infos            : 341 steps (291 accepted, 50 rejected)
 ```
-We know that for the above dynamics run on a Hilbert subspace $$\mathcal{H}_N \subset \mathcal{H}$$ with $$\mathcal{H}_N = \text{Span}\left( \ket{n} \mid 0 \leq n \leq 36 \right)$$, the error made by truncating the dynamics from $$\mathcal{H}$$ to $$\mathcal{H}_N$$ (That is $$||_1$$ρ - ρ<sub>(N)</sub> $$||_1$$) is less than 5.8022265e-14. Note that it may be limited by the solver precision set at 1e-14. (It is indeed the case here.)
+We know that for the above dynamics run on a Hilbert subspace $$\mathcal{H}_N \subset \mathcal{H}$$ with $$\mathcal{H}_N = \text{Span}\left( \ket{n} \mid 0 \leq n \leq 36 \right)$$, the error made by truncating the dynamics from $$\mathcal{H}$$ to $$\mathcal{H}_N$$ (That is $$||_1$$ρ - ρ<sub>(N)</sub>$$||_1$$, see the related article for more informations) is less than 5.8022265e-14. Note that it may be limited by the solver precision set at 1e-14. (It is indeed the case here.)
 
 ## Adaptative solver
 
