@@ -1,11 +1,7 @@
 <script type="text/javascript" async
   src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
 </script>
-
-When \( a \ne 0 \), there are two solutions to \( ax^2 + bx + c = 0 \) given by
-
 $$ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} $$
-
 # Dynamiqs_adaptative
 A version of dynamiqs implementing a solver adaptative in the size of the modes for the Lindblad master equation.
 
@@ -19,7 +15,11 @@ It allows to dynamically adjust the truncation of the Hilbert space, enabling fu
 
 ## Non-trivial truncations
 
-
+For other simulations than 1-mode the principle is the same. We simulate on a finite subspace that we call $$\xH_N \subset \xH$$, for instance for multi-modes simulations the subspace can be:
+        $$\xH_N=\operatorname*{Span}\{ \ket{i_1}\otimes \ldots \otimes \ket{i_m}\mid 0\leq i_1 \leq N_1,\, \ldots,\, 0\leq i_m \leq N_m \}.$$
+$$
+            \xH_N=\operatorname*{Span}\{ \ket{i_1}\otimes \ldots \otimes \ket{i_m}\mid 0 \leq \sum_{j=0}^{m} i_j \leq N \}.
+$$
 
 # Installation 
 
