@@ -1,13 +1,25 @@
-# dynamiqs_adaptative
+<script type="text/javascript" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+</script>
+
+When \( a \ne 0 \), there are two solutions to \( ax^2 + bx + c = 0 \) given by
+
+$$ x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a} $$
+
+# Dynamiqs_adaptative
 A version of dynamiqs implementing a solver adaptative in the size of the modes for the Lindblad master equation.
 
-## truncation estimator 
+## Truncation estimator 
 
 This version of dynamiqs implements an estimator of the error made by the truncation from an infinite Fock space to a finite one.
 
-## adaptative solver
+## Adaptative solver
 
-This version will also adapt the size in modes on which to compute the simulation to save time by disregarding less populated modes.
+It allows to dynamically adjust the truncation of the Hilbert space, enabling fully adaptive simulations of the density matrix.
+
+## Non-trivial truncations
+
+
 
 # Installation 
 
