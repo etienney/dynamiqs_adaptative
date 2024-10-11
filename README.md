@@ -19,6 +19,8 @@ For multimode simulations the usual finite subspace to simulate on, that we call
 
 $$ \mathcal{H}_N = \text{Span}\{ \ket{i_1} \otimes \cdots \otimes \ket{i_m} \mid 0 \leq i_1 \leq N_1,\, \cdots,\, 0 \leq i_m \leq N_m \} $$
 
+But it could be any finite subspace for instance:
+
 $$ \mathcal{H}_N = \text{Span}\{ \ket{i_1} \otimes \cdots \otimes \ket{i_m} \mid 0 \leq \sum_{j=0}^{m} i_j \leq N \} $$
 
 # Installation 
