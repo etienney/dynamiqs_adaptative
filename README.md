@@ -33,14 +33,20 @@ pip install git+https://github.com/etienney/dynamiqs_adaptative.git
 
 ## Truncation estimator 
 
+
+
+## Adaptative solver
+
+This in an example of a reshaping for some dynamic defined in H, jump_ops, and an initial rho, with the adaptative solver using all its options.
 ```python
 import dynamiqs_adaptative as dq
-n=70
-solver_atol, solver_rtol = 1e-14, 1e-14
-estimator_rtol = 500
-downsizing_rtol = 5
+n=70 # the maximum size we can access numerically
 tensorisation=(n,)
-inequalities = [[lambda a: a, 50, 4, 4]]
+solver_atol, solver_rtol = 1e-14, 1e-14
+estimator_rtol = 500 # Such that the minimal precision we aim at for the estimator is limit = 500*(solver_atol + solver_rtol)*t/(total_time)
+downsizing_rtol = 5 # Such that if we have an estimator that is under limit/5 we reduce the size of our objects to win computation time
+initial_inequality, extend_by, reduce_by = 50, 4, 4 # such that we select some initial states respecting the inequalities set in the first parameters among the variable "inequalities" (next line) for the parameter initial_inequality, and we will reshape respecting some inequalities for a parameter + "extend_by" while extending or the parameter - "reduce_by" while downsizing
+inequalities = [[lambda a: a, initial_inequality, extend_by, reduce_by]] # a list of some inequalities set as [the inequality as a lambda function, the initial parameter for those inequalites, by how much we extend the parameter that control via the inequality the states we look at, by how much we reduce it]
 res = dq.mesolve(H(n), jump_ops(n), rho(n), t_span, 
     solver=dq.solver.Tsit5(atol = solver_atol, rtol = solver_rtol, max_steps=10000), 
     options = dq.Options(estimator=True, reshaping=True, 
@@ -48,10 +54,6 @@ res = dq.mesolve(H(n), jump_ops(n), rho(n), t_span,
     estimator_rtol=estimator_rtol, downsizing_rtol=downsizing_rtol)
 )
 ```
-
-## Adaptative solver
-
-
 
 ## Non-trivial truncations
 
