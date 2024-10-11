@@ -34,7 +34,7 @@ pip install git+https://github.com/etienney/dynamiqs_adaptative.git
 ## Truncation estimator 
 
 This is a basic example of a 1-mode dynamic defined in H, jump_ops, and an initial rho, with the adaptative solver using all its options.
-```python {cmd=true}
+```python
 import dynamiqs_adaptative as dq
 import jax.numpy as jnp
 dq.set_precision('double') 
@@ -58,6 +58,18 @@ res = dq.mesolve(
     options = dq.Options(estimator=True, tensorisation=tensorisation)
 )
 print(res)
+```
+
+The output specifies the smaller space the simulation has been done on:
+```Markdown
+|███████████████████████████████████████████████████████████████████████████████████████████████| 100.0% ◆ elapsed 366.38ms ◆ remaining 0.00ms
+==== MEResult ====
+Solver           : Tsit5
+States           : Array complex128 (292, 40, 40) | 7.13 Mb
+Estimator        : [5.8022265e-14+0.j]
+Simulation size  : (36,)
+Original size    : (40,)
+Infos            : 341 steps (291 accepted, 50 rejected)
 ```
 
 ## Adaptative solver
