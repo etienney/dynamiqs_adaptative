@@ -6,7 +6,7 @@ A version of dynamiqs implementing a solver adaptative in the size of the modes 
 
 ## Truncation estimator 
 
-This version of dynamiqs implements an estimator of the error made by the truncation from a infinite Fock Hilbert $$ \mathcal{H} $$ space to a finite one $$ \mathcal{H}_N $$.
+This version of dynamiqs implements an estimator of the error made by the truncation from a infinite Fock Hilbert $$\mathcal{H}$$ space to a finite one $$\mathcal{H}_N$$.
 
 ## Adaptative solver
 
