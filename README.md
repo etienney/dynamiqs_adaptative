@@ -16,9 +16,9 @@ It allows to dynamically adjust the truncation of the Hilbert space, enabling fu
 ## Non-trivial truncations
 
 For other simulations than 1-mode the principle is the same. We simulate on a finite subspace that we call $$\xH_N \subset \xH$$, for instance for multi-modes simulations the subspace can be:
-        $$\xH_N=\operatorname*{Span}\{ \ket{i_1}\otimes \ldots \otimes \ket{i_m}\mid 0\leq i_1 \leq N_1,\, \ldots,\, 0\leq i_m \leq N_m \}.$$
+        $$\xH_N=Span\{ \ket{i_1}\otimes \ldots \otimes \ket{i_m}\mid 0\leq i_1 \leq N_1,\, \ldots,\, 0\leq i_m \leq N_m \}.$$
 $$
-            \xH_N=\operatorname*{Span}\{ \ket{i_1}\otimes \ldots \otimes \ket{i_m}\mid 0 \leq \sum_{j=0}^{m} i_j \leq N \}.
+            \xH_N=Span\{ \ket{i_1}\otimes \ldots \otimes \ket{i_m}\mid 0 \leq \sum_{j=0}^{m} i_j \leq N \}.
 $$
 
 # Installation 
