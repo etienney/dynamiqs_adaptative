@@ -60,7 +60,7 @@ res = dq.mesolve(
 print(res)
 ```
 
-The output specifies the smaller space the simulation has been done on:
+The output specifies the smaller space the simulation has been done on and the output of the estimator:
 ```Markdown
 |███████████████████████████████████████████████████████████████████████████████████████████████| 100.0% ◆ elapsed 366.38ms ◆ remaining 0.00ms
 ==== MEResult ====
@@ -71,6 +71,7 @@ Simulation size  : (36,)
 Original size    : (40,)
 Infos            : 341 steps (291 accepted, 50 rejected)
 ```
+We know that for the above dynamics run on a Hilbert subspace $$\mathcal{H}_N \subset \mathcal{H}$$ with $$\mathcal{H}_N = \text{Span}\left( \ket{n} 0 \leq n \leq 35 \right)$$ the error made by truncating the dynamics from $$\mathcal{H}$$ to $$\mathcal{H}_N$$ is less than 5.8022265e-14. Note that it may be limited by the solver precision set at 1e-14. (It is indeed the case here.)
 
 ## Adaptative solver
 
