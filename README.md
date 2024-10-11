@@ -15,11 +15,11 @@ It allows to dynamically adjust the truncation of the Hilbert space, enabling fu
 
 ## Non-trivial truncations
 
-For multimode simulations, the usual finite subspace to simulate on, that we call $$ \mathcal{H}_N \subset \mathcal{H} $$ is:
+For multimode simulations the usual finite subspace to simulate on, that we call $$\mathcal{H}_N \subset \mathcal{H}$$ is:
 
-$$ \mathcal{H}_N = \text{Span}\left\{ \ket{i_1} \otimes \cdots \otimes \ket{i_m} \mid 0 \leq i_1 \leq N_1, \, \cdots, \, 0 \leq i_m \leq N_m \right\}. $$
+$$ \mathcal{H}_N = \text{Span}\left\{ \ket{i_1} \otimes \cdots \otimes \ket{i_m} \mid 0 \leq i_1 \leq N_1,\, \cdots,\, 0 \leq i_m \leq N_m \right\} $$
 
-$$ \mathcal{H}_N = \text{Span}\left\{ \ket{i_1} \otimes \cdots \otimes \ket{i_m} \mid 0 \leq \sum_{j=0}^{m} i_j \leq N \right\}. $$
+$$ \mathcal{H}_N = \text{Span}\left\{ \ket{i_1} \otimes \cdots \otimes \ket{i_m} \mid 0 \leq \sum_{j=0}^{m} i_j \leq N \right\} $$
 
 # Installation 
 
