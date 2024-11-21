@@ -13,7 +13,7 @@ dependencies = [
     "jaxlib<0.4.34",
     "jaxtyping<0.2.34",
     "diffrax==0.5.0",  # for complex support (0.5.0) and progress meter (0.5.1)
-    "equinox==0.7.0",
+    "equinox==0.11.2",
     "imageio==2.35.1",
     "cmasher==1.8.0",  # avoid matplotlib colormaps deprecation warning
     "ipython",
