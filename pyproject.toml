@@ -1,7 +1,7 @@
 [project]
 name = "dynamiqs_adaptative"
 version = "0.2.0"
-requires-python = "==3.10"
+requires-python = ">=3.10"
 description = "A version of dynamiqs implementing an estimator and an adptative solver"
 dependencies = [
     "qutip>=4.0,<5.0",
