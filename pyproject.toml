@@ -4,19 +4,21 @@ version = "0.2.0"
 requires-python = "<=3.12"
 description = "A version of dynamiqs implementing an estimator and an adptative solver"
 dependencies = [
-    "qutip>=4.0,<5.0",
-    "scipy<=1.12",  # fix QuTiP unspecified dependency on scipy
-    "numpy==1.26.4",
+    "qutip>=4.7.5",
+    "scipy",
+    "numpy",
     "matplotlib",
     "tqdm",
+    # todo: fix when https://github.com/patrick-kidger/equinox/pull/871 is released
     "jax<0.4.34",
-    "jaxlib<0.4.34",
-    "jaxtyping<0.2.34",
-    "diffrax==0.6.0",  # for complex support (0.5.0) and progress meter (0.5.1)
+    "jaxlib",
+    "jaxtyping<=0.2.34",  # see https://github.com/patrick-kidger/jaxtyping/issues/269
+    "diffrax>=0.5.1",  # for complex support (0.5.0) and progress meter (0.5.1)
     "equinox",
-    "imageio==2.35.1",
-    "cmasher==1.8.0",  # avoid matplotlib colormaps deprecation warning
+    "pillow",
+    "cmasher>=1.8.0",  # avoid matplotlib colormaps deprecation warning
     "ipython",
+    "tqdm",
 ]
 
 [build-system]
