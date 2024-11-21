@@ -6,7 +6,7 @@ description = "A version of dynamiqs implementing an estimator and an adptative 
 dependencies = [
     "qutip>=4.0,<5.0",
     "scipy<=1.12",  # fix QuTiP unspecified dependency on scipy
-    "numpy",
+    "numpy==1.11.2",
     "matplotlib",
     "tqdm",
     "jax<0.4.34",
