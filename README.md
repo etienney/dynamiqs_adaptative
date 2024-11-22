@@ -62,14 +62,14 @@ print(res)
 
 The output specifies the smaller space the simulation has been done on and the output of the estimator:
 ```Markdown
-|███████████████████████████████████████████████████████████████████████████████████████████████| 100.0% ◆ elapsed 366.38ms ◆ remaining 0.00ms
+|████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████| 100.0% ◆ elapsed 24.77s ◆ remaining 0.00ms
 ==== MEResult ====
 Solver           : Tsit5
-States           : Array complex128 (292, 40, 40) | 7.13 Mb
-Estimator        : [5.8022265e-14+0.j]
-Simulation size  : (36,)
-Original size    : (40,)
-Infos            : 341 steps (291 accepted, 50 rejected)
+States           : Array complex128 (1045, 70, 70) | 78.13 Mb
+Estimator        : [5.26458702e-13+0.j]
+Simulation size  : (66,)
+Original size    : (70,)
+Infos            : 1328 steps (1044 accepted, 284 rejected)
 ```
 We know that for the above dynamics run on a Hilbert subspace $$\mathcal{H}_N \subset \mathcal{H}$$ with $$\mathcal{H}_N = \text{Span}\left( \ket{n} \mid 0 \leq n \leq 36 \right)$$, the error made by truncating the dynamics from $$\mathcal{H}$$ to $$\mathcal{H}_N$$ (That is $$||_1$$ρ - ρ<sub>(N)</sub>$$||_1$$, see the related article for more informations) is less than 5.8022265e-14. Note that it may be limited by the solver precision set at 1e-14. (It is indeed the case here.)
 
