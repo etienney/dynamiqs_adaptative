@@ -2,7 +2,7 @@
 A version of dynamiqs implementing a solver where the object can be truncated in modes according to some inequalities. It allows for computing the Lindblad equation according to the selected modes only.
 
 ## Exemple
-```
+```python
 import dynamiqs_adaptative as dq
 import jax.numpy as jnp
 
