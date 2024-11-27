@@ -1,11 +1,11 @@
-# Dynamiqs_adaptative
-A version of dynamiqs implementing a solver adaptative in the size of the modes for the Lindblad master equation.
+# Dynamiqs_adaptive
+A version of dynamiqs implementing a solver adaptive in the size of the modes for the Lindblad master equation.
 
 ## Truncation estimator 
 
 This version of dynamiqs implements an estimator of the error made by the truncation from an infinite Fock Hilbert space $$\mathcal{H}$$ to a finite one $$\mathcal{H}_N \subset \mathcal{H}$$.
 
-## Adaptative solver
+## adaptive solver
 
 This option allows to dynamically adjust the truncation of the Hilbert space, enabling fully adaptive simulations of the density matrix.
 
@@ -25,7 +25,7 @@ Depending on ones needs some subspaces may be more interesting than others. We a
 # Installation 
 
 ```shell
-pip install git+https://github.com/etienney/dynamiqs_adaptative.git
+pip install git+https://github.com/etienney/dynamiqs_adaptive.git
 ```
 
 
@@ -33,9 +33,9 @@ pip install git+https://github.com/etienney/dynamiqs_adaptative.git
 
 ## Truncation estimator 
 
-This is a basic example of a 1-mode dynamic defined in H, jump_ops, and an initial rho, with the adaptative solver using all its options.
+This is a basic example of a 1-mode dynamic defined in H, jump_ops, and an initial rho, with the adaptive solver using all its options.
 ```python
-import dynamiqs_adaptative as dq
+import dynamiqs_adaptive as dq
 import jax.numpy as jnp
 dq.set_precision('double') 
 
@@ -73,11 +73,11 @@ Infos            : 1328 steps (1044 accepted, 284 rejected)
 ```
 We know that for the above dynamics run on a Hilbert subspace $$\mathcal{H}_N \subset \mathcal{H}$$ with $$\mathcal{H}_N = \text{Span}\left( \ket{n} \mid 0 \leq n \leq 36 \right)$$, the error made by truncating the dynamics from $$\mathcal{H}$$ to $$\mathcal{H}_N$$ (That is $$||_1$$ρ - ρ<sub>(N)</sub>$$||_1$$, see the related article for more informations) is less than 5.8022265e-14. Note that it may be limited by the solver precision set at 1e-14. (It is indeed the case here.)
 
-## Adaptative solver
+## adaptive solver
 
-This is a basic example of a simulation with dynamical reshaping for a 1-mode dynamic defined in H, jump_ops, and an initial rho, with the adaptative solver using all its options.
+This is a basic example of a simulation with dynamical reshaping for a 1-mode dynamic defined in H, jump_ops, and an initial rho, with the adaptive solver using all its options.
 ```python
-import dynamiqs_adaptative as dq
+import dynamiqs_adaptive as dq
 
 n=70 # the maximum size we can access numerically
 tensorisation=(n,)
@@ -98,7 +98,7 @@ res = dq.mesolve(
 
 This is the same for a 2-mode simulation using some non-trivial truncation.
 ```python
-import dynamiqs_adaptative as dq
+import dynamiqs_adaptive as dq
 n_a, n_b = 60, 30
 tensorisation=(n_a, n_b)
 solver_atol, solver_rtol = 1e-14, 1e-14
@@ -116,4 +116,4 @@ res = dq.mesolve(H(n_a, n_b), jump_ops(n_a, n_b), rho(n_a, n_b), t_span,
 
 ## Non-trivial truncations
 
-The branch "dynamiqs_adaptative - Inequalities ab initio" allows to run faster a simulation that would only need to use some non-trivial truncations.
+The branch "dynamiqs_adaptive - Inequalities ab initio" allows to run faster a simulation that would only need to use some non-trivial truncations.

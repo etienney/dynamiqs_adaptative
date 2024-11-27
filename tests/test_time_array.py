@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 import pytest
 
-from dynamiqs_adaptative.time_array import (
+from dynamiqs_adaptive.time_array import (
     CallableTimeArray,
     ConstantTimeArray,
     ModulatedTimeArray,

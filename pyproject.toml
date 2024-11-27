@@ -1,5 +1,5 @@
 [project]
-name = "dynamiqs_adaptative"
+name = "dynamiqs_adaptive"
 version = "0.2.0"
 requires-python = ">3.9.9"
 description = "A version of dynamiqs implementing an estimator and an adptative solver"
