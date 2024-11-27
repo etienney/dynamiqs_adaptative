@@ -3,8 +3,8 @@ import jax.numpy as jnp
 import pytest
 import qutip as qt
 
-import dynamiqs_adaptative as dq
-from dynamiqs_adaptative._utils import cdtype
+import dynamiqs_adaptive as dq
+from dynamiqs_adaptive._utils import cdtype
 
 
 def test_ket_fidelity_correctness():

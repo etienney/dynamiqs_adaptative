@@ -1,9 +1,9 @@
-# dynamiqs_adaptative - Inequalities ab initio
+# dynamiqs_adaptive - Inequalities ab initio
 A version of dynamiqs implementing a solver where the object can be truncated in modes according to some inequalities. It allows for computing the Lindblad equation according to the selected modes only.
 
 ## Exemple
 ```python
-import dynamiqs_adaptative as dq
+import dynamiqs_adaptive as dq
 import jax.numpy as jnp
 
 def jump_ops2(n_a,n_b):
@@ -55,5 +55,5 @@ print(res2)
 # Installation 
 
 ```shell
-pip install git+https://github.com/etienney/dynamiqs_adaptative.git@inequalities_ab_initio
+pip install git+https://github.com/etienney/dynamiqs_adaptive.git@inequalities_ab_initio
 ```

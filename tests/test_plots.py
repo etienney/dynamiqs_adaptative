@@ -3,8 +3,8 @@ import numpy as np
 import pytest
 from matplotlib import pyplot as plt
 
-from dynamiqs_adaptative import coherent, plot_wigner, plot_wigner_mosaic, todm
-from dynamiqs_adaptative.utils.utils.wigner import _diag_element, wigner
+from dynamiqs_adaptive import coherent, plot_wigner, plot_wigner_mosaic, todm
+from dynamiqs_adaptive.utils.utils.wigner import _diag_element, wigner
 
 # TODO : add comparison with analytical wigner for coherent states and cat states
 
